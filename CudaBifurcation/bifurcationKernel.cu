@@ -26,9 +26,27 @@ __host__ void bifurcation1D(	int					in_tMax,
 {
 	size_t amountOfTPoints = in_tMax / in_h;
 
+	//float* globalParamValues = nullptr;
+	//globalParamValues = (float*)malloc(sizeof(float) * in_nPts);
+	//linspace(in_paramValues1, in_paramValues2, in_nPts, globalParamValues);
+
 	float* globalParamValues = nullptr;
 	globalParamValues = (float*)malloc(sizeof(float) * in_nPts);
 	linspace(in_paramValues1, in_paramValues2, in_nPts, globalParamValues);
+
+	float* aParamValues			= nullptr;
+	float* bParamValues			= nullptr;
+	float* cParamValues			= nullptr;
+	float* symmetryParamValues	= nullptr;
+
+	aParamValues		= (float*)malloc(sizeof(float) * in_nPts);
+	bParamValues		= (float*)malloc(sizeof(float) * in_nPts);
+	cParamValues		= (float*)malloc(sizeof(float) * in_nPts);
+	symmetryParamValues = (float*)malloc(sizeof(float) * in_nPts);
+
+	getParamsAndSymmetry(aParamValues, bParamValues, cParamValues, symmetryParamValues,
+						in_paramA, in_paramB, in_paramC, 0.5f,
+						in_paramValues1, in_paramValues2, in_mode, in_nPts);
 
 	size_t freeMemory;
 	size_t totalMemory;
@@ -37,7 +55,8 @@ __host__ void bifurcation1D(	int					in_tMax,
 
 	freeMemory *= in_memoryLimit;
 
-	float maxMemoryLimit = (sizeof(float) * ((in_tMax / in_h) + 3));
+	//float maxMemoryLimit = (sizeof(float) * ((in_tMax / in_h) + 3));		//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	float maxMemoryLimit = sizeof(float) * ((in_tMax / in_h) + 4) + sizeof(int);
 
 	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
 
@@ -51,10 +70,18 @@ __host__ void bifurcation1D(	int					in_tMax,
 	float	*	h_data;
 	int		*	h_dataSizes;
 	float	*	h_dataTimes;
+	float	*	h_a_dataTimes;
+	float	*	h_b_dataTimes;
+	float	*	h_c_dataTimes;
+	float	*	h_symmetry_dataTimes;
 
 	float	*	d_data;
 	int		*	d_dataSizes;
-	float	*	d_dataTimes;
+//	float	*	d_dataTimes;
+	float	*	d_a_dataTimes;
+	float	*	d_b_dataTimes;
+	float	*	d_c_dataTimes;
+	float	*	d_symmetry_dataTimes;
 
 	size_t amountOfIteration = (size_t)std::ceilf((float)in_nPts / (float)nPtsLimiter);;
 
@@ -66,13 +93,33 @@ __host__ void bifurcation1D(	int					in_tMax,
 		if (i == amountOfIteration - 1)
 		{
 			h_dataTimes = (float*)malloc((in_nPts - nPtsLimiter * i) * sizeof(float));
+
+			h_a_dataTimes			= (float*)malloc((in_nPts - nPtsLimiter * i) * sizeof(float));
+			h_b_dataTimes			= (float*)malloc((in_nPts - nPtsLimiter * i) * sizeof(float));
+			h_c_dataTimes			= (float*)malloc((in_nPts - nPtsLimiter * i) * sizeof(float));
+			h_symmetry_dataTimes	= (float*)malloc((in_nPts - nPtsLimiter * i) * sizeof(float));
+
 			slice(globalParamValues, nPtsLimiter * i, in_nPts, h_dataTimes);
+			slice(aParamValues, nPtsLimiter * i, in_nPts, h_a_dataTimes);
+			slice(bParamValues, nPtsLimiter * i, in_nPts, h_b_dataTimes);
+			slice(cParamValues, nPtsLimiter * i, in_nPts, h_c_dataTimes);
+			slice(symmetryParamValues, nPtsLimiter * i, in_nPts, h_symmetry_dataTimes);
 			nPtsLimiter = in_nPts - (nPtsLimiter * i);
 		}
 		else
 		{
 			h_dataTimes = (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+
+			h_a_dataTimes			= (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+			h_b_dataTimes			= (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+			h_c_dataTimes			= (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+			h_symmetry_dataTimes	= (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+
 			slice(globalParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_dataTimes);
+			slice(aParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_a_dataTimes);
+			slice(bParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_b_dataTimes);
+			slice(cParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_c_dataTimes);
+			slice(symmetryParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_symmetry_dataTimes);
 		}
 
 
@@ -81,9 +128,17 @@ __host__ void bifurcation1D(	int					in_tMax,
 
 		cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(float));
 		cudaMalloc((void**)&d_dataSizes, nPtsLimiter * sizeof(int));
-		cudaMalloc((void**)&d_dataTimes, nPtsLimiter * sizeof(float));
+		//cudaMalloc((void**)&d_dataTimes, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_a_dataTimes, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_b_dataTimes, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_c_dataTimes, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_symmetry_dataTimes, nPtsLimiter * sizeof(float));
 
-		cudaMemcpy(d_dataTimes, h_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		//cudaMemcpy(d_dataTimes, h_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_a_dataTimes, h_a_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_b_dataTimes, h_b_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_c_dataTimes, h_c_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_symmetry_dataTimes, h_symmetry_dataTimes, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
 		int blockSize;
 		int minGridSize;
@@ -95,7 +150,11 @@ __host__ void bifurcation1D(	int					in_tMax,
 
 
 		//Call CUDA func
-		bifuractionKernel<<<gridSize, blockSize >>>(		d_dataTimes,
+		bifuractionKernel<<<gridSize, blockSize >>>(		//d_dataTimes,
+															d_a_dataTimes,
+															d_b_dataTimes,
+															d_c_dataTimes,
+															d_symmetry_dataTimes,
 															nPtsLimiter,
 															in_tMax,
 															in_h,
@@ -105,11 +164,11 @@ __host__ void bifurcation1D(	int					in_tMax,
 															in_nValue,
 															in_prePeakFinderSliceK,
 															d_data,
-															d_dataSizes,
-															in_paramA,
-															in_paramB,
-															in_paramC,
-															in_mode);
+															d_dataSizes);
+															//in_paramA,
+															//in_paramB,
+															//in_paramC,
+															//in_mode);
 
 
 		cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost);
@@ -119,7 +178,11 @@ __host__ void bifurcation1D(	int					in_tMax,
 
 		cudaFree(d_data);
 		cudaFree(d_dataSizes);
-		cudaFree(d_dataTimes);
+		//cudaFree(d_dataTimes);
+		cudaFree(d_a_dataTimes);
+		cudaFree(d_b_dataTimes);
+		cudaFree(d_c_dataTimes);
+		cudaFree(d_symmetry_dataTimes);
 
 		for (size_t i = 0; i < nPtsLimiter; ++i)
 			for (size_t j = 0; j < h_dataSizes[i]; ++j)
@@ -137,6 +200,10 @@ __host__ void bifurcation1D(	int					in_tMax,
 		std::free(h_data);
 		std::free(h_dataSizes);
 		std::free(h_dataTimes);
+		std::free(h_a_dataTimes);
+		std::free(h_b_dataTimes);
+		std::free(h_c_dataTimes);
+		std::free(h_symmetry_dataTimes);
 
 		if (in_debug)
 			std::cout << "       " << std::setprecision(3) << (100.0f / (float)amountOfIteration) * (i + 1) << "%\n";
@@ -151,18 +218,24 @@ __host__ void bifurcation1D(	int					in_tMax,
 		std::cout << '\n';
 	}
 
+	std::free(globalParamValues);
+
 	progress.store(100, std::memory_order_seq_cst);
 
 	outFileStream.close();
 
-	std::free(globalParamValues);
+	//std::free(globalParamValues);
 
 	return;
 }
 
 
 
-__global__ void bifuractionKernel(	float*					in_paramValues,
+__global__ void bifuractionKernel(	//float*					in_paramValues,
+									float*					in_paramA,
+									float*					in_paramB,
+									float*					in_paramC,
+									float*					in_symmetry,
 									int						in_nPts, 
 									int						in_TMax, 
 									float					in_h, 
@@ -172,51 +245,54 @@ __global__ void bifuractionKernel(	float*					in_paramValues,
 									int						in_nValue, 
 									float					in_prePeakFinderSliceK, 
 									float*					in_data, 
-									int*					in_dataSizes, 
-									float					in_A, 
-									float					in_B, 
-									float					in_C, 
-									int						in_mode)
+									int*					in_dataSizes)
+									//float					in_A, 
+									//float					in_B, 
+									//float					in_C,
+									//int					in_mode)
 {
 	int idx = threadIdx.x + blockIdx.x * blockDim.x;
 	if (idx >= in_nPts)
 		return;
 
-	float s = in_paramValues[idx];
+	//float s = in_paramValues[idx];
 
 	size_t amountOfTPoints = in_TMax / in_h;
 
-	float localH1 = in_h * 0.5;
-	float localH2 = in_h * (1 - 0.5);
+	//float localH1 = in_h * 0.5;
+	//float localH2 = in_h * (1 - 0.5);
+	float localH1 = in_h * in_symmetry[idx];
+	float localH2 = in_h * (1 - in_symmetry[idx]);
+
 	float x[3]{ in_initialCondition1, in_initialCondition2, in_initialCondition3 };
 
-	switch (in_mode)
-	{
-	case PARAM_A:
-		in_A = s;
-		break;
-	case PARAM_B:
-		in_B = s;
-		break;
-	case PARAM_C:
-		in_C = s;
-		break;
-	case SYMMETRY:
-		localH1 = in_h * s;
-		localH2 = in_h * (1 - s);
-		break;
-	}
+	//switch (in_mode)
+	//{
+	//case PARAM_A:
+	//	in_A = s;
+	//	break;
+	//case PARAM_B:
+	//	in_B = s;
+	//	break;
+	//case PARAM_C:
+	//	in_C = s;
+	//	break;
+	//case SYMMETRY:
+	//	localH1 = in_h * s;
+	//	localH2 = in_h * (1 - s);
+	//	break;
+	//}
 
 	for (size_t i = 0; i < amountOfTPoints; ++i)
 	{
 		in_data[idx * amountOfTPoints + i] = x[in_nValue];
 
 		x[0] = x[0] + localH1 * (-x[1] - x[2]);
-		x[1] = (x[1] + localH1 * (x[0])) / (1 - in_A * localH1);
-		x[2] = (x[2] + localH1 * in_B) / (1 - localH1 * (x[0] - in_C));
+		x[1] = (x[1] + localH1 * (x[0])) / (1 - in_paramA[idx] * localH1);
+		x[2] = (x[2] + localH1 * in_paramB[idx]) / (1 - localH1 * (x[0] - in_paramC[idx]));
 
-		x[2] = x[2] + localH2 * (in_B + x[2] * (x[0] - in_C));
-		x[1] = x[1] + localH2 * (x[0] + in_A * x[1]);
+		x[2] = x[2] + localH2 * (in_paramB[idx] + x[2] * (x[0] - in_paramC[idx]));
+		x[1] = x[1] + localH2 * (x[0] + in_paramA[idx] * x[1]);
 		x[0] = x[0] + localH2 * (-x[1] - x[2]);
 	}
 
@@ -266,8 +342,8 @@ __device__ void peakFinder(int idx, float prePeakFinder, size_t amountOfTPoints,
 
 
 
-template <class T>
-__host__ void linspace(T a, T b, int amount, T* out)
+template <class T1, class T2>
+__host__ void linspace(T1 a, T1 b, int amount, T2* out)
 {
 	if (amount <= 0)
 		throw std::invalid_argument("linspace error. amount <= 0");
@@ -286,6 +362,38 @@ __host__ void linspace(T a, T b, int amount, T* out)
 
 
 
+__host__ void getParamsAndSymmetry(float* a, float* b, float* c, float* symmetry,
+	float in_a, float in_b, float in_c, float in_symmetry,
+	float startInterval1, float finishInteraval1, int mode1,
+	int nPts)
+{
+	if (mode1 == PARAM_A)
+		linspace(startInterval1, finishInteraval1, nPts, a);
+	else
+		for (int i = 0; i < nPts; ++i)
+			a[i] = in_a;
+
+	if (mode1 == PARAM_B)
+		linspace(startInterval1, finishInteraval1, nPts, b);
+	else
+		for (int i = 0; i < nPts; ++i)
+			b[i] = in_b;
+
+	if (mode1 == PARAM_C)
+		linspace(startInterval1, finishInteraval1, nPts, c);
+	else
+		for (int i = 0; i < nPts; ++i)
+			c[i] = in_c;
+
+	if (mode1 == SYMMETRY)
+		linspace(startInterval1, finishInteraval1, nPts, symmetry);
+	else
+		for (int i = 0; i < nPts; ++i)
+			symmetry[i] = in_symmetry;
+}
+
+
+
 template <class T>
 __host__ void slice(T* in, int a, int b, T* out)
 {
@@ -294,3 +402,5 @@ __host__ void slice(T* in, int a, int b, T* out)
 	for (size_t i = 0; i < b - a; ++i)
 		out[i] = in[a + i];
 }
+
+
