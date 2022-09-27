@@ -15,25 +15,21 @@ enum BifurcationMode
 };
 
 
-__global__ void bifuractionKernel(//float* in_paramValues,
-								  float*					in_paramA,
-								  float*					in_paramB,
-								  float*					in_paramC,
-								  float*					in_symmetry,
-								  int						in_nPts,
-								  int						in_TMax,
-								  float						in_h,
-								  float						in_initialCondition1,
-								  float						in_initialCondition2,
-								  float						in_initialCondition3,
-								  int						in_nValue,
-								  float						in_prePeakFinderSliceK,
-								  float*					in_data,
-								  int*						in_dataSizes);
-								  //float						in_A,
-								  //float						in_B,
-								  //float						in_C,
-								  //int						in_mode);
+__global__ void bifuractionKernel(	float*					in_paramA,
+									float*					in_paramB,
+									float*					in_paramC,
+									float*					in_symmetry,
+									int						in_nPts,
+									int						in_TMax,
+									float					in_h,
+									float					in_initialCondition1,
+									float					in_initialCondition2,
+									float					in_initialCondition3,
+									int						in_nValue,
+									float					in_prePeakFinderSliceK,
+									float*					in_data,
+									int*					in_dataSizes);
+
 
 // Обертка, которая для каждой бифуркационки будет своя!
 __host__ void bifurcation1D(int					in_tMax,
