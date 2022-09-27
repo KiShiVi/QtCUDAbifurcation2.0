@@ -267,7 +267,7 @@ __device__ void peakFinder(int idx, float prePeakFinder, size_t amountOfTPoints,
 
 
 template <class T>
-__host__ void linspace(T a, float b, int amount, T* out)
+__host__ void linspace(T a, T b, int amount, T* out)
 {
 	if (amount <= 0)
 		throw std::invalid_argument("linspace error. amount <= 0");

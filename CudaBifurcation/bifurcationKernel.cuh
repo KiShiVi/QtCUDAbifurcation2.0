@@ -61,7 +61,7 @@ __device__ void peakFinder(	int idx,
 
 // return in "out" array [a, b] with "amount" elements
 template <class T>
-__host__ void linspace(T a, float b, int amount, T* out);
+__host__ void linspace(T a, T b, int amount, T* out);
 
 template <class T>
 __host__ void slice(T* in, int a, int b, T* out);
