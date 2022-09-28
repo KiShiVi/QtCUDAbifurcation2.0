@@ -109,7 +109,8 @@ __device__ void kdeMethod(int idx,
 	float kdeSamplesInterval1,
 	float kdeSamplesInterval2,
 	size_t amountOfTPoints,
-	float kdeSmoothH);
+	float kdeSmoothH,
+	int criticalValueOfPeaks);
 
 
 

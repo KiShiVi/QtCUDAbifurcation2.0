@@ -498,7 +498,8 @@ __global__ void bifuractionKernel(	float*					in_paramA,
 		break;
 	case KDE_MODE:
 		outSize = peakFinder(idx, in_prePeakFinderSliceK, amountOfTPoints, in_data, in_dataSizes, in_data);
-		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH);
+		//in_dataSizes[idx] = outSize;
+		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, 10 * in_TMax * (1 - in_prePeakFinderSliceK));
 		break;
 	}
 }
@@ -551,7 +552,8 @@ __device__ void kdeMethod(int idx,
 	float kdeSamplesInterval1, 
 	float kdeSamplesInterval2,
 	size_t amountOfTPoints,
-	float kdeSmoothH)
+	float kdeSmoothH,
+	int criticalValueOfPeaks)
 {
 	float k1 = kdeSampling * _outSize;
 	float k2 = (kdeSamplesInterval2 - kdeSamplesInterval1) / (k1 - 1);
@@ -578,6 +580,12 @@ __device__ void kdeMethod(int idx,
 	if (_outSize == 2)
 	{
 		kdeResult[idx] = 1;
+		return;
+	}
+
+	if (_outSize > criticalValueOfPeaks)
+	{
+		kdeResult[idx] = -1;
 		return;
 	}
 
