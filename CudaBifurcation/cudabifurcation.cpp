@@ -16,7 +16,7 @@
 #include <fstream>
 #include <string>
 
-#define CONF1 "conf.txt"
+#define CONF1 "conf1d.txt"
 
 CudaBifurcation::CudaBifurcation(QWidget *parent)
     : QWidget(parent)
@@ -252,6 +252,7 @@ void CudaBifurcation::initGui()
     mainLayout->addLayout(modeLayout);
     mainLayout->addLayout(memoryLimitLayout);
     mainLayout->addLayout(filePathLayout);
+    mainLayout->addStretch(0);
     mainLayout->addWidget(p_progressBar);
     mainLayout->addWidget(p_applyButton);
 

@@ -38,8 +38,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="bifurcationKernel.cuh" />
+    <ClCompile Include="cudabifurcation2d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mainbifurcationform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="bifurcationKernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="cudabifurcation2d.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mainbifurcationform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

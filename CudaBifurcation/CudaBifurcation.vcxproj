@@ -92,9 +92,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="mainbifurcationform.cpp" />
     <QtRcc Include="cudabifurcation.qrc" />
     <QtMoc Include="cudabifurcation.h" />
     <ClCompile Include="cudabifurcation.cpp" />
+    <ClCompile Include="cudabifurcation2d.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -105,6 +107,12 @@
       <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Qt_STDCPP_)</LanguageStandard>
       <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</LanguageStandard_C>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="cudabifurcation2d.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mainbifurcationform.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
