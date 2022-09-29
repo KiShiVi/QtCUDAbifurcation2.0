@@ -1,4 +1,4 @@
-#include "cudabifurcation2d.h"
+#include "cudabifurcation3d.h"
 #include "bifurcationKernel.cuh"
 
 #include <QtCore/qdebug.h>
@@ -17,13 +17,13 @@
 #include <fstream>
 #include <string>
 
-#define CONF2 "conf2d.txt"
+#define CONF3 "conf3d.txt"
 
-CudaBifurcation2D::CudaBifurcation2D(QWidget* parent)
+CudaBifurcation3D::CudaBifurcation3D(QWidget* parent)
     : QWidget(parent)
 {
     initGui();
-    parseFile(CONF2);
+    parseFile(CONF3);
     QTimer* timer = new QTimer;
     connect(timer, SIGNAL(timeout()), SLOT(onTimeoutTimer()));
     connect(this, SIGNAL(finishBifurcation()), SLOT(onFinishBifurcation()));
@@ -32,12 +32,12 @@ CudaBifurcation2D::CudaBifurcation2D(QWidget* parent)
     isCalculate = false;
 }
 
-CudaBifurcation2D::~CudaBifurcation2D()
+CudaBifurcation3D::~CudaBifurcation3D()
 {
 
 }
 
-void CudaBifurcation2D::callBifurcation()
+void CudaBifurcation3D::callBifurcation()
 {
     progress.store(0, std::memory_order_seq_cst);
     isCalculate = true;
@@ -51,7 +51,7 @@ void CudaBifurcation2D::callBifurcation()
     for (int i = 0; i < p_initialConditions->text().split(' ').count(); ++i)
         initialConditions[i] = p_initialConditions->text().split(' ')[i].toFloat();
 
-    bifurcation2D(p_tMax->value(),
+    bifurcation3D(p_tMax->value(),
         p_nPts->value(),
         p_h->value(),
         initialConditions,
@@ -59,6 +59,8 @@ void CudaBifurcation2D::callBifurcation()
         p_paramValues2->value(),
         p_paramValues3->value(),
         p_paramValues4->value(),
+        p_paramValues5->value(),
+        p_paramValues6->value(),
         p_nValue->value(),
         p_prePeakFinder->value(),
         p_thresholdValueOfMaxSignalValue->value(),
@@ -67,6 +69,7 @@ void CudaBifurcation2D::callBifurcation()
         params,
         p_mode1->value(),
         p_mode2->value(),
+        p_mode3->value(),
         p_kdeSampling->value(),
         p_kdeSamplesInterval1->value(),
         p_kdeSamplesInterval2->value(),
@@ -80,7 +83,7 @@ void CudaBifurcation2D::callBifurcation()
     emit finishBifurcation();
 }
 
-void CudaBifurcation2D::onFinishBifurcation()
+void CudaBifurcation3D::onFinishBifurcation()
 {
     progress.store(100, std::memory_order_seq_cst);
 
@@ -90,7 +93,7 @@ void CudaBifurcation2D::onFinishBifurcation()
     p_successMsgBox->show();
 }
 
-void CudaBifurcation2D::onTimeoutTimer()
+void CudaBifurcation3D::onTimeoutTimer()
 {
     p_progressBar->setValue(progress.load(std::memory_order_seq_cst));
     if (isCalculate)
@@ -105,7 +108,7 @@ void CudaBifurcation2D::onTimeoutTimer()
     }
 }
 
-void CudaBifurcation2D::saveFile(QString filePath)
+void CudaBifurcation3D::saveFile(QString filePath)
 {
     std::ofstream in;
     in.open(filePath.toStdString());
@@ -118,7 +121,7 @@ void CudaBifurcation2D::saveFile(QString filePath)
     in << "T_MAX: " << p_tMax->value() << "\n";
     in << "N_PTS: " << p_nPts->value() << "\n";
     in << "H: " << p_h->value() << "\n";
-    
+
     in << "\n#Initial conditions\n";
     in << "INITIAL_CONDITIONS:" << p_initialConditions->text().toStdString() << "\n";
 
@@ -128,6 +131,9 @@ void CudaBifurcation2D::saveFile(QString filePath)
     in << "\n#Calculation range 2\n";
     in << "PARAM_VALUES_3: " << p_paramValues3->value() << "\n";
     in << "PARAM_VALUES_4: " << p_paramValues4->value() << "\n";
+    in << "\n#Calculation range 3\n";
+    in << "PARAM_VALUES_5: " << p_paramValues5->value() << "\n";
+    in << "PARAM_VALUES_6: " << p_paramValues6->value() << "\n";
 
     in << "\n#Calculated parameter\n";
     in << "N_VALUE: " << p_nValue->value() << "\n";
@@ -145,6 +151,7 @@ void CudaBifurcation2D::saveFile(QString filePath)
 
     in << "MODE_1: " << p_mode1->value() << "\n";
     in << "MODE_2: " << p_mode2->value() << "\n";
+    in << "MODE_3: " << p_mode3->value() << "\n";
 
     in << "\n";
 
@@ -170,7 +177,7 @@ void CudaBifurcation2D::saveFile(QString filePath)
     in.close();
 }
 
-void CudaBifurcation2D::parseFile(QString filePath)
+void CudaBifurcation3D::parseFile(QString filePath)
 {
 
     p_tMax->setValue(parseValueFromFile(filePath, "T_MAX").toInt());                      //!< Время моделирования
@@ -183,6 +190,8 @@ void CudaBifurcation2D::parseFile(QString filePath)
     p_paramValues2->setValue(parseValueFromFile(filePath, "PARAM_VALUES_2").toFloat());           //!< Конец диапазона расчета
     p_paramValues3->setValue(parseValueFromFile(filePath, "PARAM_VALUES_3").toFloat());           //!< Начало диапазона расчета
     p_paramValues4->setValue(parseValueFromFile(filePath, "PARAM_VALUES_4").toFloat());           //!< Конец диапазона расчета
+    p_paramValues5->setValue(parseValueFromFile(filePath, "PARAM_VALUES_5").toFloat());           //!< Конец диапазона расчета
+    p_paramValues6->setValue(parseValueFromFile(filePath, "PARAM_VALUES_6").toFloat());           //!< Конец диапазона расчета
 
     p_nValue->setValue(parseValueFromFile(filePath, "N_VALUE").toInt());                    //!< Какую координату (0/1/2 = x/y/z) берем в расчет
     p_prePeakFinder->setValue(parseValueFromFile(filePath, "PRE_PEAKFINDER_SLICE_K").toFloat());   //!< Какой процент точек отрезаем (отсекам переходный процесс)
@@ -193,8 +202,9 @@ void CudaBifurcation2D::parseFile(QString filePath)
 
     p_mode1->setValue(parseValueFromFile(filePath, "MODE_1").toInt());                       //!< По какому параметру обходим (см. enum Mode)
     p_mode2->setValue(parseValueFromFile(filePath, "MODE_2").toInt());                       //!< По какому параметру обходим (см. enum Mode)
+    p_mode3->setValue(parseValueFromFile(filePath, "MODE_3").toInt());                       //!< По какому параметру обходим (см. enum Mode)
 
-    p_kdeSampling->setValue(parseValueFromFile(filePath, "KDE_SAMPLING").toInt()); 
+    p_kdeSampling->setValue(parseValueFromFile(filePath, "KDE_SAMPLING").toInt());
 
     p_kdeSamplesInterval1->setValue(parseValueFromFile(filePath, "KDE_SAMPLES_INTERVAL_1").toFloat());
     p_kdeSamplesInterval2->setValue(parseValueFromFile(filePath, "KDE_SAMPLES_INTERVAL_2").toFloat());
@@ -206,7 +216,7 @@ void CudaBifurcation2D::parseFile(QString filePath)
     p_filePath->setText(parseValueFromFile(filePath, "OUTPATH"));                             //!< Путь к файлу с результатом 
 }
 
-void CudaBifurcation2D::initGui()
+void CudaBifurcation3D::initGui()
 {
     p_successMsgBox = new QMessageBox;
 
@@ -220,6 +230,8 @@ void CudaBifurcation2D::initGui()
     p_paramValues2 = new QDoubleSpinBox;
     p_paramValues3 = new QDoubleSpinBox;
     p_paramValues4 = new QDoubleSpinBox;
+    p_paramValues5 = new QDoubleSpinBox;
+    p_paramValues6 = new QDoubleSpinBox;
 
     p_nValue = new QSpinBox;
 
@@ -233,6 +245,7 @@ void CudaBifurcation2D::initGui()
 
     p_mode1 = new QSpinBox;
     p_mode2 = new QSpinBox;
+    p_mode3 = new QSpinBox;
 
     p_kdeSampling = new QSpinBox;
 
@@ -257,7 +270,7 @@ void CudaBifurcation2D::initGui()
     QHBoxLayout* nPtsLayout = new QHBoxLayout();
     nPtsLayout->addWidget(new QLabel("NPts: "));
     nPtsLayout->addWidget(p_nPts);
-    p_nPts->setMinimum(10);
+    p_nPts->setMinimum(5);
     p_nPts->setMaximum(99999999);
     p_nPts->setValue(100);
 
@@ -297,6 +310,19 @@ void CudaBifurcation2D::initGui()
     p_paramValues4->setMaximum(99999999);
     p_paramValues4->setValue(0);
     p_paramValues4->setMinimumWidth(60);
+
+    QHBoxLayout* paramValuesLayout3 = new QHBoxLayout();
+    paramValuesLayout3->addWidget(new QLabel("3) "));
+    paramValuesLayout3->addWidget(p_paramValues5);
+    paramValuesLayout3->addWidget(p_paramValues6);
+    p_paramValues5->setMinimum(-99999999);
+    p_paramValues5->setMaximum(99999999);
+    p_paramValues5->setValue(0);
+    p_paramValues5->setMinimumWidth(60);
+    p_paramValues6->setMinimum(-99999999);
+    p_paramValues6->setMaximum(99999999);
+    p_paramValues6->setValue(0);
+    p_paramValues6->setMinimumWidth(60);
 
     QHBoxLayout* nValueLayout = new QHBoxLayout();
     nValueLayout->addWidget(new QLabel("NValue: "));
@@ -344,6 +370,13 @@ void CudaBifurcation2D::initGui()
     p_mode2->setMaximum(3);
     p_mode2->setValue(0);
 
+    QHBoxLayout* modeLayout3 = new QHBoxLayout();
+    modeLayout3->addWidget(new QLabel("Mode 3: "));
+    modeLayout3->addWidget(p_mode3);
+    p_mode3->setMinimum(0);
+    p_mode3->setMaximum(3);
+    p_mode3->setValue(0);
+
     QHBoxLayout* kdeSamplingLayout = new QHBoxLayout();
     kdeSamplingLayout->addWidget(new QLabel("KDE Sampling: "));
     kdeSamplingLayout->addWidget(p_kdeSampling);
@@ -354,11 +387,11 @@ void CudaBifurcation2D::initGui()
     QHBoxLayout* kdeSamplesIntervalsLayout = new QHBoxLayout();
     kdeSamplesIntervalsLayout->addWidget(p_kdeSamplesInterval1);
     kdeSamplesIntervalsLayout->addWidget(p_kdeSamplesInterval2);
-    p_kdeSamplesInterval1->setMinimum(-1000);
-    p_kdeSamplesInterval1->setMaximum(1000);
+    p_kdeSamplesInterval1->setMinimum(-99999999);
+    p_kdeSamplesInterval1->setMaximum(99999999);
     p_kdeSamplesInterval1->setValue(-50);
-    p_kdeSamplesInterval2->setMinimum(-1000);
-    p_kdeSamplesInterval2->setMaximum(1000);
+    p_kdeSamplesInterval2->setMinimum(-99999999);
+    p_kdeSamplesInterval2->setMaximum(99999999);
     p_kdeSamplesInterval2->setValue(50);
 
     QHBoxLayout* kdeSmoothLayout = new QHBoxLayout();
@@ -397,6 +430,7 @@ void CudaBifurcation2D::initGui()
     mainLayout->addWidget(new QLabel("Param Values: "));
     mainLayout->addLayout(paramValuesLayout);
     mainLayout->addLayout(paramValuesLayout2);
+    mainLayout->addLayout(paramValuesLayout3);
     mainLayout->addLayout(nValueLayout);
     mainLayout->addLayout(prePeakFinderLayout);
     mainLayout->addLayout(p_thresholdValueOfMaxSignalValueLayout);
@@ -405,6 +439,7 @@ void CudaBifurcation2D::initGui()
     mainLayout->addLayout(paramsLayout);
     mainLayout->addLayout(modeLayout);
     mainLayout->addLayout(modeLayout2);
+    mainLayout->addLayout(modeLayout3);
     mainLayout->addWidget(new QLabel("KDE Samples Intervals: "));
     mainLayout->addLayout(kdeSamplesIntervalsLayout);
     mainLayout->addLayout(kdeSamplingLayout);
@@ -419,7 +454,7 @@ void CudaBifurcation2D::initGui()
     setLayout(mainLayout);
 }
 
-QString CudaBifurcation2D::parseValueFromFile(QString filePath, QString parameterName)
+QString CudaBifurcation3D::parseValueFromFile(QString filePath, QString parameterName)
 {
     std::string inBuffer;
     std::ifstream in;
@@ -449,7 +484,7 @@ QString CudaBifurcation2D::parseValueFromFile(QString filePath, QString paramete
     return QString();
 }
 
-void CudaBifurcation2D::onStopButtonClicked()
+void CudaBifurcation3D::onStopButtonClicked()
 {
     //QTextCodec::setCodecForCStrings(QTextCodec::codecForName("utf-8"));
     p_successMsgBox->setWindowTitle(":-B");
@@ -459,9 +494,9 @@ void CudaBifurcation2D::onStopButtonClicked()
     //isCalculate = false;
 }
 
-void CudaBifurcation2D::onApplyButtonClicked()
+void CudaBifurcation3D::onApplyButtonClicked()
 {
-    saveFile(CONF2);
+    saveFile(CONF3);
     timeOfCalculate = QDateTime::currentSecsSinceEpoch();
     thread = new QThread();
     moveToThread(thread);

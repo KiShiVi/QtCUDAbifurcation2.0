@@ -12,6 +12,7 @@
 #include <QtCore/qthread.h>
 #include <QtCore/qdatetime.h>
 #include <QtWidgets/qmessagebox.h>
+#include <QtWidgets/qcombobox.h>
 
 #include <fstream>
 #include <string>
@@ -61,6 +62,7 @@ void CudaBifurcation::callBifurcation()
                     p_prePeakFinder->value(),
                     p_thresholdValueOfMaxSignalValue->value(),
                     p_params->text().split(' ').count(),
+                    p_discreteModelMode->currentIndex(),
                     params,
                     p_mode->value(),
                     p_memoryLimit->value(),
@@ -195,6 +197,8 @@ void CudaBifurcation::initGui()
 
     p_thresholdValueOfMaxSignalValue = new QSpinBox();
 
+    p_discreteModelMode     = new QComboBox;
+
     p_params                = new QLineEdit();
 
     p_mode                  = new QSpinBox;
@@ -233,10 +237,10 @@ void CudaBifurcation::initGui()
     QHBoxLayout* paramValuesLayout = new QHBoxLayout();
     paramValuesLayout->addWidget(p_paramValues1);
     paramValuesLayout->addWidget(p_paramValues2);
-    p_paramValues1->setMinimum(0);
+    p_paramValues1->setMinimum(-99999999);
     p_paramValues1->setMaximum(99999999);
     p_paramValues1->setValue(0);
-    p_paramValues2->setMinimum(0);
+    p_paramValues2->setMinimum(-99999999);
     p_paramValues2->setMaximum(99999999);
     p_paramValues2->setValue(0);
 
@@ -260,6 +264,14 @@ void CudaBifurcation::initGui()
     p_thresholdValueOfMaxSignalValue->setMinimum(0);
     p_thresholdValueOfMaxSignalValue->setMaximum(100000);
     p_thresholdValueOfMaxSignalValue->setValue(10000);
+
+    QHBoxLayout* p_discreteModelModeLayout = new QHBoxLayout();
+    p_discreteModelModeLayout->addWidget(new QLabel("Discrete Model: "));
+    p_discreteModelModeLayout->addWidget(p_discreteModelMode);
+    p_discreteModelMode->addItem("Rossler");
+    p_discreteModelMode->addItem("Chen");
+    p_discreteModelMode->addItem("Lorenz");
+    p_discreteModelMode->addItem("Lorenz-Rybin");
 
     QHBoxLayout* paramsLayout = new QHBoxLayout();
     paramsLayout->addWidget(p_params);
@@ -302,6 +314,7 @@ void CudaBifurcation::initGui()
     mainLayout->addLayout(nValueLayout);
     mainLayout->addLayout(prePeakFinderLayout);
     mainLayout->addLayout(p_thresholdValueOfMaxSignalValueLayout);
+    mainLayout->addLayout(p_discreteModelModeLayout);
     mainLayout->addWidget(new QLabel("Params: "));
     mainLayout->addLayout(paramsLayout);
     mainLayout->addLayout(modeLayout);

@@ -11,14 +11,16 @@ enum ResultMode
 	KDE_MODE
 };
 
-enum BifurcationMode
+enum DISCRETE_MODEL
 {	
-	SYMMETRY,
-	PARAM_A,
-	PARAM_B,
-	PARAM_C
+	ROSSLER,
+	CHEN,
+	LORENZ,
+	LORENZ_RYBIN
 };
 
+
+__device__ void calculateDiscreteModel(int mode, float* x, float* values, float localH1, float localH2);
 
 __global__ void bifuractionKernel(	int in_nPts,
 									int in_TMax,
@@ -31,11 +33,14 @@ __global__ void bifuractionKernel(	int in_nPts,
 									ResultMode resultMode,
 									int thresholdValueOfMaxSignalValue,
 									int	in_amountOfParams,
+									int in_discreteModelMode,
 									float* in_params,
 									float* in_paramValues1,
 									int	in_mode1,
 									float* in_paramValues2 = nullptr,
 									int in_mode2 = -1,
+									float* in_paramValues3 = nullptr,
+									int in_mode3 = -1,
 									int in_kdeSampling = 0,
 									float in_kdeSamplesInterval1 = 0.0f,
 									float in_kdeSamplesInterval2 = 0.0f,
@@ -53,6 +58,7 @@ __host__ void bifurcation1D(int					in_tMax,
 							float				in_prePeakFinderSliceK,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
+							int					in_discreteModelMode,
 							float*				in_params,
 							int					in_mode,
 							float				in_memoryLimit,
@@ -75,9 +81,41 @@ __host__ void bifurcation2D(int					in_tMax,
 	float				in_prePeakFinderSliceK,
 	int					in_thresholdValueOfMaxSignalValue,
 	int					in_amountOfParams,
+	int					in_discreteModelMode,
 	float*				in_params,
 	int					in_mode1,
 	int					in_mode2,
+	int					in_kdeSampling,
+	float				in_kdeSamplesInterval1,
+	float				in_kdeSamplesInterval2,
+	float				in_kdeSamplesSmooth,
+	float				in_memoryLimit,
+	std::string			in_outPath,
+	bool				in_debug,
+	std::atomic<int>& progress);
+
+
+
+// Обертка, которая для каждой бифуркационки будет своя!
+__host__ void bifurcation3D(int					in_tMax,
+	int					in_nPts,
+	float				in_h,
+	float*				in_initialConditions,
+	float				in_paramValues1,
+	float				in_paramValues2,
+	float				in_paramValues3,
+	float				in_paramValues4,
+	float				in_paramValues5,
+	float				in_paramValues6,
+	int					in_nValue,
+	float				in_prePeakFinderSliceK,
+	int					in_thresholdValueOfMaxSignalValue,
+	int					in_amountOfParams,
+	int					in_discreteModelMode,
+	float*				in_params,
+	int					in_mode1,
+	int					in_mode2,
+	int					in_mode3,
 	int					in_kdeSampling,
 	float				in_kdeSamplesInterval1,
 	float				in_kdeSamplesInterval2,
@@ -115,13 +153,15 @@ __device__ void kdeMethod(int idx,
 template <class T1, class T2>
 __host__ void linspace(T1 a, T1 b, int amount, T2* out, int startIndex = 0);
 
-__host__ void getParamsAndSymmetry1D(float* param1,
-	float startInterval1, float finishInteraval1,
-	int nPts);
-
 __host__ void getParamsAndSymmetry2D(float* param1, float* param2,
 	float startInterval1, float finishInteraval1,
 	float startInterval2, float finishInteraval2,
+	int nPts);
+
+__host__ void getParamsAndSymmetry3D(float* param1, float* param2, float* param3,
+	float startInterval1, float finishInteraval1,
+	float startInterval2, float finishInteraval2,
+	float startInterval3, float finishInteraval3,
 	int nPts);
 
 template <class T>

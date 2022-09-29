@@ -15,6 +15,7 @@ __host__ void bifurcation1D(int					in_tMax,
 							float				in_prePeakFinderSliceK,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
+							int					in_discreteModelMode,
 							float*				in_params,
 							int					in_mode,
 							float				in_memoryLimit,
@@ -112,6 +113,7 @@ __host__ void bifurcation1D(int					in_tMax,
 																PEAKFINDER_MODE,
 																in_thresholdValueOfMaxSignalValue,
 																in_amountOfParams,
+																in_discreteModelMode,
 																d_params,
 																d_dataTimes,
 																in_mode);
@@ -180,6 +182,7 @@ __host__ void bifurcation2D(int					in_tMax,
 							float				in_prePeakFinderSliceK,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
+							int					in_discreteModelMode,
 							float*				in_params,
 							int					in_mode1,
 							int					in_mode2,
@@ -242,6 +245,7 @@ __host__ void bifurcation2D(int					in_tMax,
 
 	cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(float));
 	cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(float));
+
 	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
@@ -302,11 +306,14 @@ __host__ void bifurcation2D(int					in_tMax,
 			KDE_MODE,
 			in_thresholdValueOfMaxSignalValue,
 			in_amountOfParams,
+			in_discreteModelMode,
 			d_params,
 			d_paramValues1,
 			in_mode1,
 			d_paramValues2,
 			in_mode2,
+			nullptr,
+			0,
 			in_kdeSampling,
 			in_kdeSamplesInterval1,
 			in_kdeSamplesInterval2,
@@ -372,6 +379,231 @@ __host__ void bifurcation2D(int					in_tMax,
 
 
 
+__host__ void bifurcation3D(int					in_tMax,
+							int					in_nPts,
+							float				in_h,
+							float*				in_initialConditions,
+							float				in_paramValues1,
+							float				in_paramValues2,
+							float				in_paramValues3,
+							float				in_paramValues4,
+							float				in_paramValues5,
+							float				in_paramValues6,
+							int					in_nValue,
+							float				in_prePeakFinderSliceK,
+							int					in_thresholdValueOfMaxSignalValue,
+							int					in_amountOfParams,
+							int					in_discreteModelMode,
+							float*				in_params,
+							int					in_mode1,
+							int					in_mode2,
+							int					in_mode3,
+							int					in_kdeSampling,
+							float				in_kdeSamplesInterval1,
+							float				in_kdeSamplesInterval2,
+							float				in_kdeSamplesSmooth,
+							float				in_memoryLimit,
+							std::string			in_outPath,
+							bool				in_debug,
+							std::atomic<int>& progress)
+{
+	std::ofstream outFileStream;
+	outFileStream.open(in_outPath);
+	outFileStream << in_paramValues1 << ", " << in_paramValues2 << "\n" << in_paramValues3 << ", " << in_paramValues4 << "\n" << in_paramValues5 << ", " << in_paramValues6 << "\n";
+
+	size_t amountOfTPoints = in_tMax / in_h;
+
+	float* paramValues1 = nullptr;
+	float* paramValues2 = nullptr;
+	float* paramValues3 = nullptr;
+
+	paramValues1 = (float*)malloc(sizeof(float) * in_nPts * in_nPts * in_nPts);
+	paramValues2 = (float*)malloc(sizeof(float) * in_nPts * in_nPts * in_nPts);
+	paramValues3 = (float*)malloc(sizeof(float) * in_nPts * in_nPts * in_nPts);
+
+	getParamsAndSymmetry3D(paramValues1, paramValues2, paramValues3,
+		in_paramValues1, in_paramValues2,
+		in_paramValues3, in_paramValues4,
+		in_paramValues5, in_paramValues6,
+		in_nPts);
+
+	size_t freeMemory;
+	size_t totalMemory;
+
+	cudaMemGetInfo(&freeMemory, &totalMemory);
+	//freeMemory = 7472152576;
+	freeMemory *= in_memoryLimit * 0.95;
+
+	float maxMemoryLimit = sizeof(float) * ((in_tMax / in_h) + 3 + in_amountOfParams) + sizeof(int);
+
+	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
+
+	if (nPtsLimiter <= 0)
+	{
+		if (in_debug)
+			std::cout << "\nVery low memory size. Increase the MEMORY_LIMIT!" << "\n";
+		exit(1);
+	}
+
+	int* h_kdeResult;
+	float* h_data;
+	float* h_paramValues1;
+	float* h_paramValues2;
+	float* h_paramValues3;
+
+	float* d_params;
+	int* d_kdeResult;
+	float* d_data;
+	float* d_paramValues1;
+	float* d_paramValues2;
+	float* d_paramValues3;
+	float* d_initialConditions;
+
+
+	cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(float));
+	cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(float));
+
+	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+	size_t amountOfIteration = (size_t)std::ceilf((float)(in_nPts * in_nPts * in_nPts) / (float)nPtsLimiter);
+
+	int stringCounter = 0;
+
+	for (size_t i = 0; i < amountOfIteration; ++i)
+	{
+		if (i == amountOfIteration - 1)
+		{
+			h_kdeResult = (int*)malloc(((in_nPts * in_nPts * in_nPts) - nPtsLimiter * i) * sizeof(int));
+			h_paramValues1 = (float*)malloc(((in_nPts * in_nPts * in_nPts) - nPtsLimiter * i) * sizeof(float));
+			h_paramValues2 = (float*)malloc(((in_nPts * in_nPts * in_nPts) - nPtsLimiter * i) * sizeof(float));
+			h_paramValues3 = (float*)malloc(((in_nPts * in_nPts * in_nPts) - nPtsLimiter * i) * sizeof(float));
+
+			slice(paramValues1, nPtsLimiter * i, (in_nPts * in_nPts * in_nPts), h_paramValues1);
+			slice(paramValues2, nPtsLimiter * i, (in_nPts * in_nPts * in_nPts), h_paramValues2);
+			slice(paramValues3, nPtsLimiter * i, (in_nPts * in_nPts * in_nPts), h_paramValues3);
+			nPtsLimiter = (in_nPts * in_nPts * in_nPts) - (nPtsLimiter * i);
+		}
+		else
+		{
+			h_kdeResult = (int*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(int));
+			h_paramValues1 = (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+			h_paramValues2 = (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+			h_paramValues3 = (float*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(float));
+
+			slice(paramValues1, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_paramValues1);
+			slice(paramValues2, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_paramValues2);
+			slice(paramValues3, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_paramValues3);
+		}
+
+
+		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
+
+		cudaMalloc((void**)&d_kdeResult, nPtsLimiter * sizeof(int));
+		cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(float));
+		cudaMalloc((void**)&d_paramValues1, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_paramValues2, nPtsLimiter * sizeof(float));
+		cudaMalloc((void**)&d_paramValues3, nPtsLimiter * sizeof(float));
+
+		cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		cudaMemcpy(d_paramValues3, h_paramValues3, nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+		int blockSize;
+		int minGridSize;
+		int gridSize;
+
+		cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, bifuractionKernel, 0, nPtsLimiter);
+		gridSize = (nPtsLimiter + blockSize - 1) / blockSize;
+
+		//Call CUDA func
+		bifuractionKernel << <gridSize, blockSize >> > (
+			nPtsLimiter,
+			in_tMax,
+			in_h,
+			d_initialConditions,
+			in_nValue,
+			in_prePeakFinderSliceK,
+			d_data,
+			d_kdeResult,
+			KDE_MODE,
+			in_thresholdValueOfMaxSignalValue,
+			in_amountOfParams,
+			in_discreteModelMode,
+			d_params,
+			d_paramValues1,
+			in_mode1,
+			d_paramValues2,
+			in_mode2,
+			d_paramValues3,
+			in_mode3,
+			in_kdeSampling,
+			in_kdeSamplesInterval1,
+			in_kdeSamplesInterval2,
+			in_kdeSamplesSmooth);
+
+
+		//cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+		cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+
+		cudaDeviceSynchronize();
+
+		cudaFree(d_data);
+		cudaFree(d_kdeResult);
+		cudaFree(d_paramValues1);
+		cudaFree(d_paramValues2);
+		cudaFree(d_paramValues3);
+
+		for (size_t i = 0; i < nPtsLimiter; ++i)
+			if (outFileStream.is_open())
+			{
+				if (stringCounter != 0)
+					outFileStream << ", ";
+				if (stringCounter == in_nPts)
+				{
+					outFileStream << "\n";
+					stringCounter = 0;
+				}
+				outFileStream << h_kdeResult[i];
+				++stringCounter;
+			}
+			else
+			{
+				std::cout << "\nOutput file open error" << std::endl;
+				exit(1);
+			}
+
+		std::free(h_kdeResult);
+		std::free(h_data);
+		std::free(h_paramValues1);
+		std::free(h_paramValues2);
+		std::free(h_paramValues3);
+
+		if (in_debug)
+			std::cout << "       " << std::setprecision(3) << (100.0f / (float)amountOfIteration) * (i + 1) << "%\n";
+
+		progress.store((100.0f / (float)amountOfIteration) * (i + 1), std::memory_order_seq_cst);
+	}
+
+	cudaFree(d_params);
+	cudaFree(d_initialConditions);
+
+	if (in_debug)
+	{
+		if (amountOfIteration != 1)
+			std::cout << "       " << "100%\n";
+		std::cout << '\n';
+	}
+
+	progress.store(100, std::memory_order_seq_cst);
+
+	outFileStream.close();
+
+	return;
+}
+
+
+
 __global__ void bifuractionKernel(
 	int in_nPts,
 	int in_TMax,
@@ -384,11 +616,14 @@ __global__ void bifuractionKernel(
 	ResultMode resultMode,
 	int thresholdValueOfMaxSignalValue,
 	int	in_amountOfParams,
+	int in_discreteModelMode,
 	float* in_params,
 	float* in_paramValues1,
 	int	in_mode1,
 	float* in_paramValues2,
 	int in_mode2,
+	float* in_paramValues3,
+	int in_mode3,
 	int in_kdeSampling,
 	float in_kdeSamplesInterval1,
 	float in_kdeSamplesInterval2,
@@ -413,6 +648,9 @@ __global__ void bifuractionKernel(
 	if (in_paramValues2 != nullptr)
 		localParam[in_mode2] = in_paramValues2[idx];
 
+	if (in_paramValues3 != nullptr)
+		localParam[in_mode3] = in_paramValues3[idx];
+
 	float localH1 = in_h * localParam[0];
 	float localH2 = in_h * (1 - localParam[0]);
 
@@ -420,20 +658,17 @@ __global__ void bifuractionKernel(
 	{
 		in_data[idx * amountOfTPoints + i] = x[in_nValue];
 
-		x[0] = x[0] + localH1 * (-x[1] - x[2]);
-		x[1] = (x[1] + localH1 * (x[0])) / (1 - localParam[1] * localH1);
-		x[2] = (x[2] + localH1 * localParam[2]) / (1 - localH1 * (x[0] - localParam[3]));
-
-		x[2] = x[2] + localH2 * (localParam[2] + x[2] * (x[0] - localParam[3]));
-		x[1] = x[1] + localH2 * (x[0] + localParam[1] * x[1]);
-		x[0] = x[0] + localH2 * (-x[1] - x[2]);
+		calculateDiscreteModel(in_discreteModelMode, x, localParam, localH1, localH2);
 
 		if (resultMode == KDE_MODE && abs(x[in_nValue]) > thresholdValueOfMaxSignalValue)
 		{
 			in_dataSizes[idx] = 0;
+			delete[] localParam;
 			return;
 		}
 	}
+
+	delete[] localParam;
 
 	// Here is the choice of method: KDE or peakFinder
 	// TODO add switch on method of result
@@ -452,10 +687,52 @@ __global__ void bifuractionKernel(
 		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, 10 * in_TMax * (1 - in_prePeakFinderSliceK));
 		break;
 	}
-
-	delete[] localParam;
 }
 
+
+
+__device__ void calculateDiscreteModel(int mode, float* x, float* values, float localH1, float localH2)
+{
+	switch (mode)
+	{
+	case ROSSLER: // 0.2 0.2 5.7
+		x[0] = x[0] + localH1 * (-x[1] - x[2]);
+		x[1] = (x[1] + localH1 * (x[0])) / (1 - values[1] * localH1);
+		x[2] = (x[2] + localH1 * values[2]) / (1 - localH1 * (x[0] - values[3]));
+
+		x[2] = x[2] + localH2 * (values[2] + x[2] * (x[0] - values[3]));
+		x[1] = x[1] + localH2 * (x[0] + values[1] * x[1]);
+		x[0] = x[0] + localH2 * (-x[1] - x[2]);
+		break;
+	case CHEN: // 40 3 28
+		x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
+		x[1] = (x[1] + localH1 * x[0] * (values[3] - values[1] - x[2])) / (1 - localH1 * values[3]);
+		x[2] = (x[2] + localH1 * x[0] * x[1]) / (1 + localH1 * values[2]);
+
+		x[2] = x[2] + localH2 * (x[0] * x[1] - values[2] * x[2]);
+		x[1] = x[1] + localH2 * (x[0] * (values[3] - values[1] - x[2]) + values[3] * x[1]);
+		x[0] = x[0] + localH2 * (values[1] * (x[1] - x[0]));
+		break;
+	case LORENZ: // 10 28 2.6667
+		x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
+		x[1] = (x[1] + localH1 * x[0] * (values[2] - x[2])) / (1 + localH1);
+		x[2] = (x[2] + localH1 * x[0] * x[1]) / (1 + localH1 * values[3]);
+
+		x[2] = x[2] + localH2 * (x[0] * x[1] - values[3] * x[2]);
+		x[1] = x[1] + localH2 * (x[0] * (values[2] - x[2]) - x[1]);
+		x[0] = x[0] + localH2 * (values[1] * (x[1] - x[0])); 
+		break;
+	case LORENZ_RYBIN: // -2,5 10 20 3 -0,695
+		x[0] = x[0] + localH1 * (values[2] * x[1] - values[1] * x[0] + values[5] * x[1] * x[2]);
+		x[1] = x[1] + localH1 * (values[3] * x[0] - x[0] * x[2] - x[1]);
+		x[2] = x[2] + localH1 * (x[0] * x[1] - values[4] * x[2]);
+
+		x[2] = (x[2] + localH2 * (x[0] * x[1])) / (1 + values[4] * localH2);
+		x[1] = (x[1] + localH2 * (values[3] * x[0] - x[0] * x[2])) / (1 + localH2);
+		x[0] = (x[0] + localH2 * (values[2] * x[1] + values[5] * x[1] * x[2])) / (1 + localH2 * values[1]);
+		break;
+	}
+}
 
 
 __device__ int peakFinder(int idx, float prePeakFinder, size_t amountOfTPoints, float* in_data, int* out_dataSizes, float* out_data)
@@ -614,38 +891,6 @@ __host__ void linspace(T1 a, T1 b, int amount, T2* out, int startIndex)
 
 
 
-__host__ void getParamsAndSymmetry(float* a, float* b, float* c, float* symmetry,
-	float in_a, float in_b, float in_c, float in_symmetry,
-	float startInterval1, float finishInteraval1, int mode1,
-	int nPts)
-{
-	if (mode1 == PARAM_A)
-		linspace(startInterval1, finishInteraval1, nPts, a);
-	else
-		for (int i = 0; i < nPts; ++i)
-			a[i] = in_a;
-
-	if (mode1 == PARAM_B)
-		linspace(startInterval1, finishInteraval1, nPts, b);
-	else
-		for (int i = 0; i < nPts; ++i)
-			b[i] = in_b;
-
-	if (mode1 == PARAM_C)
-		linspace(startInterval1, finishInteraval1, nPts, c);
-	else
-		for (int i = 0; i < nPts; ++i)
-			c[i] = in_c;
-
-	if (mode1 == SYMMETRY)
-		linspace(startInterval1, finishInteraval1, nPts, symmetry);
-	else
-		for (int i = 0; i < nPts; ++i)
-			symmetry[i] = in_symmetry;
-}
-
-
-
 __host__ void getParamsAndSymmetry2D(float* param1, float* param2,
 	float startInterval1, float finishInteraval1,
 	float startInterval2, float finishInteraval2,
@@ -664,6 +909,35 @@ __host__ void getParamsAndSymmetry2D(float* param1, float* param2,
 	delete[] tempParams;
 }
 
+
+__host__ void getParamsAndSymmetry3D(float* param1, float* param2, float* param3,
+	float startInterval1, float finishInteraval1,
+	float startInterval2, float finishInteraval2,
+	float startInterval3, float finishInteraval3,
+	int nPts)
+{
+	{
+		float* tempParams2 = new float[nPts];
+		float* tempParams3 = new float[nPts];
+
+		linspace(startInterval2, finishInteraval2, nPts, tempParams2);
+		linspace(startInterval3, finishInteraval3, nPts, tempParams3);
+
+		for (int k = 0; k < nPts; ++k)
+			for (int i = 0; i < nPts; ++i)
+			{
+				linspace(startInterval1, finishInteraval1, nPts, param1, i * nPts + k * nPts * nPts);
+				for (int j = 0; j < nPts; ++j)
+				{
+					param2[nPts * nPts * k + nPts * i + j] = tempParams2[i];
+					param3[nPts * nPts * k + nPts * i + j] = tempParams3[k];
+				}
+			}
+
+		delete[] tempParams2;
+		delete[] tempParams3;
+	}
+}
 
 
 template <class T>

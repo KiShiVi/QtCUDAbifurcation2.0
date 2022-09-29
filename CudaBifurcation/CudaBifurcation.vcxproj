@@ -92,6 +92,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cudabifurcation3d.cpp" />
     <ClCompile Include="mainbifurcationform.cpp" />
     <QtRcc Include="cudabifurcation.qrc" />
     <QtMoc Include="cudabifurcation.h" />
@@ -112,6 +113,7 @@
     <QtMoc Include="cudabifurcation2d.h" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="cudabifurcation3d.h" />
     <ClInclude Include="mainbifurcationform.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

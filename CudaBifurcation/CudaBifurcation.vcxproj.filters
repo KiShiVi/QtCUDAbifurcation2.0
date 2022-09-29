@@ -44,12 +44,18 @@
     <ClCompile Include="mainbifurcationform.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cudabifurcation3d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="bifurcationKernel.cu" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="cudabifurcation2d.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="cudabifurcation3d.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

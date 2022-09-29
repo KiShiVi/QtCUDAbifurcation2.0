@@ -9,6 +9,7 @@ class QLineEdit;
 class QThread;
 class QPushButton;
 class QMessageBox;
+class QComboBox;
 
 class CudaBifurcation2D  : public QWidget
 {
@@ -56,6 +57,8 @@ private:
     QDoubleSpinBox*             p_prePeakFinder;
 
     QSpinBox*                   p_thresholdValueOfMaxSignalValue;
+
+    QComboBox*                  p_discreteModelMode;
 
     QLineEdit*                  p_params;
 
