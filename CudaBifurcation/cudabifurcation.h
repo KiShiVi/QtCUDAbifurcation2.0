@@ -22,6 +22,7 @@ signals:
         void finishBifurcation();
 
 private:
+    void saveFile(QString filePath);
     void parseFile(QString filePath);
     void initGui();
     QString parseValueFromFile(QString filePath, QString parameterName);
@@ -30,6 +31,7 @@ private slots:
     void callBifurcation();
     void onFinishBifurcation();
     void onApplyButtonClicked();
+    void onStopButtonClicked();
     void onTimeoutTimer();
 
 private:
@@ -42,9 +44,7 @@ private:
     QSpinBox*                   p_nPts;
     QDoubleSpinBox*             p_h;
 
-    QDoubleSpinBox*             p_initialCondition1;
-    QDoubleSpinBox*             p_initialCondition2;
-    QDoubleSpinBox*             p_initialCondition3;
+    QLineEdit*                  p_initialConditions;
 
     QDoubleSpinBox*             p_paramValues1;
     QDoubleSpinBox*             p_paramValues2;
@@ -53,9 +53,9 @@ private:
 
     QDoubleSpinBox*             p_prePeakFinder;
 
-    QDoubleSpinBox*             p_paramA;
-    QDoubleSpinBox*             p_paramB;
-    QDoubleSpinBox*             p_paramC;
+    QSpinBox*                   p_thresholdValueOfMaxSignalValue;
+
+    QLineEdit*                  p_params;
 
     QSpinBox*                   p_mode;
 
@@ -65,6 +65,7 @@ private:
 
     QProgressBar*               p_progressBar;
     QPushButton*                p_applyButton;
+    QPushButton*                p_stopButton;
 
     QMessageBox*                p_successMsgBox;
 

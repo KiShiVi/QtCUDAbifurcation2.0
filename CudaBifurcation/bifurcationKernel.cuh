@@ -12,54 +12,53 @@ enum ResultMode
 };
 
 enum BifurcationMode
-{
+{	
+	SYMMETRY,
 	PARAM_A,
 	PARAM_B,
-	PARAM_C,
-	SYMMETRY
+	PARAM_C
 };
 
 
-__global__ void bifuractionKernel(	float*					in_paramA,
-									float*					in_paramB,
-									float*					in_paramC,
-									float*					in_symmetry,
-									int						in_nPts,
-									int						in_TMax,
-									float					in_h,
-									float					in_initialCondition1,
-									float					in_initialCondition2,
-									float					in_initialCondition3,
-									int						in_nValue,
-									float					in_prePeakFinderSliceK,
-									float*					in_data,
-									int*					in_dataSizes,
-									ResultMode				resultMode,
-									int						in_kdeSampling = 0,
-									float					in_kdeSamplesInterval1 = 0,
-									float					in_kdeSamplesInterval2 = 0,
-									float					in_kdeSmoothH = 0);
+__global__ void bifuractionKernel(	int in_nPts,
+									int in_TMax,
+									float in_h,
+									float* in_initialConditions,
+									int in_nValue,
+									float in_prePeakFinderSliceK,
+									float* in_data,
+									int* in_dataSizes,
+									ResultMode resultMode,
+									int thresholdValueOfMaxSignalValue,
+									int	in_amountOfParams,
+									float* in_params,
+									float* in_paramValues1,
+									int	in_mode1,
+									float* in_paramValues2 = nullptr,
+									int in_mode2 = -1,
+									int in_kdeSampling = 0,
+									float in_kdeSamplesInterval1 = 0.0f,
+									float in_kdeSamplesInterval2 = 0.0f,
+									float in_kdeSmoothH = 0.0f);
 
 
 // Обертка, которая для каждой бифуркационки будет своя!
 __host__ void bifurcation1D(int					in_tMax,
-	int					in_nPts,
-	float				in_h,
-	float				in_initialCondition1,
-	float				in_initialCondition2,
-	float				in_initialCondition3,
-	float				in_paramValues1,
-	float				in_paramValues2,
-	int					in_nValue,
-	float				in_prePeakFinderSliceK,
-	float				in_paramA,
-	float				in_paramB,
-	float				in_paramC,
-	int					in_mode,
-	float				in_memoryLimit,
-	std::string			in_outPath,
-	bool				in_debug,
-	std::atomic<int>&	progress);
+							int					in_nPts,
+							float				in_h,
+							float*				in_initialConditions,
+							float				in_paramValues1,
+							float				in_paramValues2,
+							int					in_nValue,
+							float				in_prePeakFinderSliceK,
+							int					in_thresholdValueOfMaxSignalValue,
+							int					in_amountOfParams,
+							float*				in_params,
+							int					in_mode,
+							float				in_memoryLimit,
+							std::string			in_outPath,
+							bool				in_debug,
+							std::atomic<int>& progress);
 
 
 
@@ -67,18 +66,16 @@ __host__ void bifurcation1D(int					in_tMax,
 __host__ void bifurcation2D(int					in_tMax,
 	int					in_nPts,
 	float				in_h,
-	float				in_initialCondition1,
-	float				in_initialCondition2,
-	float				in_initialCondition3,
+	float*				in_initialConditions,
 	float				in_paramValues1,
 	float				in_paramValues2,
 	float				in_paramValues3,
 	float				in_paramValues4,
 	int					in_nValue,
 	float				in_prePeakFinderSliceK,
-	float				in_paramA,
-	float				in_paramB,
-	float				in_paramC,
+	int					in_thresholdValueOfMaxSignalValue,
+	int					in_amountOfParams,
+	float*				in_params,
 	int					in_mode1,
 	int					in_mode2,
 	int					in_kdeSampling,
@@ -118,15 +115,13 @@ __device__ void kdeMethod(int idx,
 template <class T1, class T2>
 __host__ void linspace(T1 a, T1 b, int amount, T2* out, int startIndex = 0);
 
-__host__ void getParamsAndSymmetry(float* a, float* b, float* c, float* symmetry,
-	float in_a, float in_b, float in_c, float in_symmetry,
-	float startInterval1, float finishInteraval1, int mode1,
+__host__ void getParamsAndSymmetry1D(float* param1,
+	float startInterval1, float finishInteraval1,
 	int nPts);
 
-__host__ void getParamsAndSymmetry(float* a, float* b, float* c, float* symmetry,
-	float in_a, float in_b, float in_c, float in_symmetry,
-	float startInterval1, float finishInteraval1, int mode1,
-	float startInterval2, float finishInteraval2, int mode2,
+__host__ void getParamsAndSymmetry2D(float* param1, float* param2,
+	float startInterval1, float finishInteraval1,
+	float startInterval2, float finishInteraval2,
 	int nPts);
 
 template <class T>
