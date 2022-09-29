@@ -213,7 +213,7 @@ __host__ void bifurcation2D(int					in_tMax,
 	size_t totalMemory;
 
 	cudaMemGetInfo(&freeMemory, &totalMemory);
-
+	//freeMemory = 7472152576;
 	freeMemory *= in_memoryLimit * 0.95;
 
 	float maxMemoryLimit = sizeof(float) * ((in_tMax / in_h) + 2 + in_amountOfParams) + sizeof(int);
