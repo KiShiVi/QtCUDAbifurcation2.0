@@ -37,7 +37,6 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="bifurcationKernel.cuh" />
     <ClCompile Include="cudabifurcation2d.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -47,9 +46,6 @@
     <ClCompile Include="cudabifurcation3d.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="bifurcationKernel.cu" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="cudabifurcation2d.h">
@@ -63,5 +59,9 @@
     <ClInclude Include="mainbifurcationform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Library\bifurcationKernel.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="..\..\Library\bifurcationKernel.cu" />
   </ItemGroup>
 </Project>

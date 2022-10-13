@@ -101,20 +101,15 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="bifurcationKernel.cu">
-      <FileType>Document</FileType>
-    </CudaCompile>
-    <ClCompile Include="bifurcationKernel.cuh">
-      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Qt_STDCPP_)</LanguageStandard>
-      <LanguageStandard_C Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</LanguageStandard_C>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <QtMoc Include="cudabifurcation2d.h" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="cudabifurcation3d.h" />
+    <ClInclude Include="..\..\Library\bifurcationKernel.cuh" />
     <ClInclude Include="mainbifurcationform.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="..\..\Library\bifurcationKernel.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
