@@ -39,7 +39,7 @@ __host__ void bifurcation1D(int					in_tMax,
 	float maxMemoryLimit = sizeof(float) * ((in_tMax / in_h) + 1 + in_amountOfParams) + sizeof(int);
 
 	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
-	//huita ebanaya
+	//ne takaya yzh huita ebanaya
 	if (nPtsLimiter <= 0)
 	{
 		if (in_debug)
