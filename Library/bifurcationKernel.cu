@@ -16,6 +16,7 @@ __host__ void bifurcation1D(int					in_tMax,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
 							int					in_discreteModelMode,
+							int					in_prescaller,
 							float*				in_params,
 							int					in_mode,
 							float				in_memoryLimit,
@@ -23,7 +24,7 @@ __host__ void bifurcation1D(int					in_tMax,
 							bool				in_debug,
 							std::atomic<int>&	progress)
 {
-	size_t amountOfTPoints = in_tMax / in_h;
+	size_t amountOfTPoints = in_tMax / in_h / in_prescaller;
 
 	float* globalParamValues = nullptr;
 	globalParamValues = (float*)malloc(sizeof(float) * in_nPts);
@@ -114,6 +115,7 @@ __host__ void bifurcation1D(int					in_tMax,
 																in_thresholdValueOfMaxSignalValue,
 																in_amountOfParams,
 																in_discreteModelMode,
+																in_prescaller,
 																d_params,
 																d_dataTimes,
 																in_mode);
@@ -183,6 +185,7 @@ __host__ void bifurcation2D(int					in_tMax,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
 							int					in_discreteModelMode,
+							int					in_prescaller,
 							float*				in_params,
 							int					in_mode1,
 							int					in_mode2,
@@ -199,7 +202,7 @@ __host__ void bifurcation2D(int					in_tMax,
 	outFileStream.open(in_outPath);
 	outFileStream << in_paramValues1 << ", " << in_paramValues2 << "\n" << in_paramValues3 << ", " << in_paramValues4 << "\n";
 
-	size_t amountOfTPoints = in_tMax / in_h;
+	size_t amountOfTPoints = in_tMax / in_h / in_prescaller;
 
 	float* paramValues1 = nullptr;
 	float* paramValues2 = nullptr;
@@ -307,6 +310,7 @@ __host__ void bifurcation2D(int					in_tMax,
 			in_thresholdValueOfMaxSignalValue,
 			in_amountOfParams,
 			in_discreteModelMode,
+			in_prescaller,
 			d_params,
 			d_paramValues1,
 			in_mode1,
@@ -394,6 +398,7 @@ __host__ void bifurcation3D(int					in_tMax,
 							int					in_thresholdValueOfMaxSignalValue,
 							int					in_amountOfParams,
 							int					in_discreteModelMode,
+							int					in_prescaller,
 							float*				in_params,
 							int					in_mode1,
 							int					in_mode2,
@@ -411,7 +416,7 @@ __host__ void bifurcation3D(int					in_tMax,
 	outFileStream.open(in_outPath);
 	outFileStream << in_paramValues1 << ", " << in_paramValues2 << "\n" << in_paramValues3 << ", " << in_paramValues4 << "\n" << in_paramValues5 << ", " << in_paramValues6 << "\n";
 
-	size_t amountOfTPoints = in_tMax / in_h;
+	size_t amountOfTPoints = in_tMax / in_h / in_prescaller;
 
 	float* paramValues1 = nullptr;
 	float* paramValues2 = nullptr;
@@ -530,6 +535,7 @@ __host__ void bifurcation3D(int					in_tMax,
 			in_thresholdValueOfMaxSignalValue,
 			in_amountOfParams,
 			in_discreteModelMode,
+			in_prescaller,
 			d_params,
 			d_paramValues1,
 			in_mode1,
@@ -617,6 +623,7 @@ __global__ void bifuractionKernel(
 	int thresholdValueOfMaxSignalValue,
 	int	in_amountOfParams,
 	int in_discreteModelMode,
+	int	in_prescaller,
 	float* in_params,
 	float* in_paramValues1,
 	int	in_mode1,
@@ -634,8 +641,10 @@ __global__ void bifuractionKernel(
 	if (idx >= in_nPts)
 		return;
 
-	size_t amountOfTPoints = in_TMax / in_h;
+	size_t amountOfTPoints		= in_TMax / in_h / in_prescaller;
+	size_t amountOfSkipPoints	= in_prePeakFinderSliceK / in_h;
 
+	// Change to dynamic / KISH
 	float x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
 
 
@@ -651,14 +660,31 @@ __global__ void bifuractionKernel(
 	if (in_paramValues3 != nullptr)
 		localParam[in_mode3] = in_paramValues3[idx];
 
-	float localH1 = in_h * localParam[0];
-	float localH2 = in_h * (1 - localParam[0]);
+	//float localH1 = in_h * localParam[0];
+	//float localH2 = in_h * (1 - localParam[0]);
 
+	//Skip PREPEAKFINDER points
+	for (size_t i = 0; i < amountOfSkipPoints; ++i) {
+
+		calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+
+		if (resultMode == KDE_MODE && abs(x[in_nValue]) > thresholdValueOfMaxSignalValue)
+		{
+			in_dataSizes[idx] = 0;
+			delete[] localParam;
+			return;
+		}
+
+	}
+
+	//Calculating
 	for (size_t i = 0; i < amountOfTPoints; ++i)
 	{
 		in_data[idx * amountOfTPoints + i] = x[in_nValue];
+		for (size_t j = 0; j < in_prescaller - 1; ++j)
+			calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
 
-		calculateDiscreteModel(in_discreteModelMode, x, localParam, localH1, localH2);
+		calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
 
 		if (resultMode == KDE_MODE && abs(x[in_nValue]) > thresholdValueOfMaxSignalValue)
 		{
@@ -691,8 +717,11 @@ __global__ void bifuractionKernel(
 
 
 
-__device__ void calculateDiscreteModel(int mode, float* x, float* values, float localH1, float localH2)
+__device__ void calculateDiscreteModel(int mode, float* x, float* values, float h)
 {
+	float localH1 = h * values[0];
+	float localH2 = h * (1 - values[0]);
+
 	switch (mode)
 	{
 	case ROSSLER: // 0.2 0.2 5.7

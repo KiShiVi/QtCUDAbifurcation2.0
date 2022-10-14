@@ -63,6 +63,7 @@ void CudaBifurcation::callBifurcation()
                     p_thresholdValueOfMaxSignalValue->value(),
                     p_params->text().split(' ').count(),
                     p_discreteModelMode->currentIndex(),
+                    10, //TODO create textBox for this param
                     params,
                     p_mode->value(),
                     p_memoryLimit->value(),
