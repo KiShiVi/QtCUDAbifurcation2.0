@@ -13,7 +13,7 @@ PARAM_VALUES_2: 0.35
 N_VALUE: 0
 
 #Cutting points before finding peaks (slice of array PRE_PEAKFINDER_SLICE_K * sizeArr:sizeArr)
-PRE_PEAKFINDER_SLICE_K: 0.3
+PRE_PEAKFINDER_SLICE_K: 2000
 
 THRESHOLD_VALUE_OF_MAX_SIGNAL: 10000
 

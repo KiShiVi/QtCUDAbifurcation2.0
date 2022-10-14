@@ -701,16 +701,29 @@ __global__ void bifuractionKernel(
 	// WARNING!!! THIS METHOD MUST TO FILL dataSizes[] (IF NEEDED)!!!
 
 	int outSize = 0;
+	float maxPeak = -thresholdValueOfMaxSignalValue;
 
 	switch (resultMode)
 	{
 	case PEAKFINDER_MODE:
-		peakFinder(idx, in_prePeakFinderSliceK, amountOfTPoints, in_data, in_dataSizes, in_data);
+		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
+
+		for (int i = 0; i < in_dataSizes[idx]; i++)
+			if (in_data[idx * amountOfTPoints + i] > maxPeak)
+				maxPeak = in_data[idx * amountOfTPoints + i];
+
+		in_dataSizes[idx] = 1;
+		in_data[idx * amountOfTPoints] = maxPeak;
 		break;
+
 	case KDE_MODE:
-		outSize = peakFinder(idx, in_prePeakFinderSliceK, amountOfTPoints, in_data, in_dataSizes, in_data);
-		//in_dataSizes[idx] = outSize;
-		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, 10 * in_TMax * (1 - in_prePeakFinderSliceK));
+		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
+
+		for (int i = 0; i < in_dataSizes[idx]; i++)
+			if (in_data[idx * amountOfTPoints + i] > maxPeak)
+				maxPeak = in_data[idx * amountOfTPoints + i];
+
+		in_dataSizes[idx] = maxPeak;
 		break;
 	}
 }
@@ -843,8 +856,9 @@ __device__ void kdeMethod(int idx,
 
 	if (_outSize > criticalValueOfPeaks)
 	{
-		kdeResult[idx] = -1;
-		return;
+		_outSize = criticalValueOfPeaks;
+		//kdeResult[idx] = -1;
+			//return;
 	}
 
 	for (int w = 0; w < k1 - 1; ++w)

@@ -310,8 +310,8 @@ void CudaBifurcation2D::initGui()
     prePeakFinderLayout->addWidget(new QLabel("Pre peak finder: "));
     prePeakFinderLayout->addWidget(p_prePeakFinder);
     p_prePeakFinder->setMinimum(0);
-    p_prePeakFinder->setMaximum(0.95);
-    p_prePeakFinder->setValue(0.3);
+    p_prePeakFinder->setMaximum(99999999);
+    p_prePeakFinder->setValue(2000);
 
     QHBoxLayout* p_thresholdValueOfMaxSignalValueLayout = new QHBoxLayout();
     p_thresholdValueOfMaxSignalValueLayout->addWidget(new QLabel("Max Signal Value Threshold: "));
