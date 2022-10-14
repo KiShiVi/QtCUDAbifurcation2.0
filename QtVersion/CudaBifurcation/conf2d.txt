@@ -6,23 +6,23 @@ H: 0.01
 INITIAL_CONDITIONS:0.1 0.1 0.1
 
 #Calculation range 1
-PARAM_VALUES_1: -2.8
-PARAM_VALUES_2: -1.6
+PARAM_VALUES_1: 0.05
+PARAM_VALUES_2: 0.35
 
 #Calculation range 2
-PARAM_VALUES_3: 9.2
-PARAM_VALUES_4: 11
+PARAM_VALUES_3: 0.05
+PARAM_VALUES_4: 0.35
 
 #Calculated parameter
 N_VALUE: 0
 
 #Cutting points before finding peaks (slice of array PRE_PEAKFINDER_SLICE_K * sizeArr:sizeArr)
-PRE_PEAKFINDER_SLICE_K: 0.8
+PRE_PEAKFINDER_SLICE_K: 2000
 
 THRESHOLD_VALUE_OF_MAX_SIGNAL: 10000
 
 #Params (0 is symmetry)
-PARAMS:0.5 -2.5 10 20 3 -0.695
+PARAMS:0.5 0.2 0.2 5.7
 
 MODE_1: 1
 MODE_2: 2

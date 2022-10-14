@@ -705,12 +705,14 @@ __global__ void bifuractionKernel(
 	switch (resultMode)
 	{
 	case PEAKFINDER_MODE:
-		peakFinder(idx, in_prePeakFinderSliceK, amountOfTPoints, in_data, in_dataSizes, in_data);
+		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
 		break;
 	case KDE_MODE:
-		outSize = peakFinder(idx, in_prePeakFinderSliceK, amountOfTPoints, in_data, in_dataSizes, in_data);
+		outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
 		//in_dataSizes[idx] = outSize;
-		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, 10 * in_TMax * (1 - in_prePeakFinderSliceK));
+		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, 
+			in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, 
+			in_kdeSmoothH, amountOfTPoints * 0.1);
 		break;
 	}
 }
