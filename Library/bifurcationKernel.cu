@@ -845,7 +845,7 @@ __device__ void kdeMethod(int idx,
 
 	if (_outSize > criticalValueOfPeaks)
 	{
-		kdeResult[idx] = -1;
+		kdeResult[idx] = criticalValueOfPeaks;
 		return;
 	}
 
