@@ -710,9 +710,12 @@ __global__ void bifuractionKernel(
 	case KDE_MODE:
 		outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
 		//in_dataSizes[idx] = outSize;
-		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, 
-			in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, 
-			in_kdeSmoothH, amountOfTPoints * 0.1);
+		//kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, 
+		//	in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, 
+		//	in_kdeSmoothH, amountOfTPoints * 0.1);
+		kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize,
+			in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints,
+			in_kdeSmoothH, 5 * in_TMax);
 		break;
 	}
 }
@@ -754,13 +757,20 @@ __device__ void calculateDiscreteModel(int mode, float* x, float* values, float 
 		x[0] = x[0] + localH2 * (values[1] * (x[1] - x[0])); 
 		break;
 	case LORENZ_RYBIN: // -2,5 10 20 3 -0,695
-		x[0] = x[0] + localH1 * (values[2] * x[1] - values[1] * x[0] + values[5] * x[1] * x[2]);
-		x[1] = x[1] + localH1 * (values[3] * x[0] - x[0] * x[2] - x[1]);
-		x[2] = x[2] + localH1 * (x[0] * x[1] - values[4] * x[2]);
+		x[0] = x[0] + localH1 * (values[1] * x[1] - values[1] * x[0] + x[1] * x[2]);
+		x[1] = x[1] + localH1 * (values[2] * x[0] - x[1] + values[3] * x[0] * x[2]);
+		x[2] = x[2] + localH1 * (-x[2] - x[0] * x[1]);
+		x[2] = (x[2] - localH2 * (x[0] * x[1])) / (1 + localH2);
+		x[1] = (x[1] + localH2 * (values[2] * x[0] + values[3] * x[0] * x[2])) / (1 + localH2);
+		x[0] = (x[0] + localH2 * (values[1] * x[1] + x[1] * x[2])) / (1 + localH2 * values[1]);
 
-		x[2] = (x[2] + localH2 * (x[0] * x[1])) / (1 + values[4] * localH2);
-		x[1] = (x[1] + localH2 * (values[3] * x[0] - x[0] * x[2])) / (1 + localH2);
-		x[0] = (x[0] + localH2 * (values[2] * x[1] + values[5] * x[1] * x[2])) / (1 + localH2 * values[1]);
+		//x[0] = x[0] + localH1 * (values[2] * x[1] - values[1] * x[0] + values[5] * x[1] * x[2]);
+		//x[1] = x[1] + localH1 * (values[3] * x[0] - x[0] * x[2] - x[1]);
+		//x[2] = x[2] + localH1 * (x[0] * x[1] - values[4] * x[2]);
+
+		//x[2] = (x[2] + localH2 * (x[0] * x[1])) / (1 + values[4] * localH2);
+		//x[1] = (x[1] + localH2 * (values[3] * x[0] - x[0] * x[2])) / (1 + localH2);
+		//x[0] = (x[0] + localH2 * (values[2] * x[1] + values[5] * x[1] * x[2])) / (1 + localH2 * values[1]);
 		break;
 	}
 }
