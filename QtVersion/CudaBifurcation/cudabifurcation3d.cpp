@@ -343,7 +343,7 @@ void CudaBifurcation3D::initGui()
     p_thresholdValueOfMaxSignalValueLayout->addWidget(new QLabel("Max Signal Value Threshold: "));
     p_thresholdValueOfMaxSignalValueLayout->addWidget(p_thresholdValueOfMaxSignalValue);
     p_thresholdValueOfMaxSignalValue->setMinimum(0);
-    p_thresholdValueOfMaxSignalValue->setMaximum(99999999);
+    p_thresholdValueOfMaxSignalValue->setMaximum(100000);
     p_thresholdValueOfMaxSignalValue->setValue(10000);
 
     QHBoxLayout* p_discreteModelModeLayout = new QHBoxLayout();
@@ -398,10 +398,9 @@ void CudaBifurcation3D::initGui()
     QHBoxLayout* kdeSmoothLayout = new QHBoxLayout();
     kdeSmoothLayout->addWidget(new QLabel("KDE Smooth: "));
     kdeSmoothLayout->addWidget(p_kdeSmooth);
-    p_kdeSmooth->setDecimals(9);
-    p_kdeSmooth->setMinimum(0.000000001);
+    p_kdeSmooth->setMinimum(0);
     p_kdeSmooth->setMaximum(1);
-    p_kdeSmooth->setValue(0.01);
+    p_kdeSmooth->setValue(0.05);
 
     QHBoxLayout* memoryLimitLayout = new QHBoxLayout();
     memoryLimitLayout->addWidget(new QLabel("Memory limit: "));

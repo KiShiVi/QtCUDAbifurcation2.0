@@ -355,11 +355,11 @@ void CudaBifurcation2D::initGui()
     QHBoxLayout* kdeSamplesIntervalsLayout = new QHBoxLayout();
     kdeSamplesIntervalsLayout->addWidget(p_kdeSamplesInterval1);
     kdeSamplesIntervalsLayout->addWidget(p_kdeSamplesInterval2);
-    p_kdeSamplesInterval1->setMinimum(-10000);
-    p_kdeSamplesInterval1->setMaximum(10000);
+    p_kdeSamplesInterval1->setMinimum(-1000);
+    p_kdeSamplesInterval1->setMaximum(1000);
     p_kdeSamplesInterval1->setValue(-50);
-    p_kdeSamplesInterval2->setMinimum(-10000);
-    p_kdeSamplesInterval2->setMaximum(10000);
+    p_kdeSamplesInterval2->setMinimum(-1000);
+    p_kdeSamplesInterval2->setMaximum(1000);
     p_kdeSamplesInterval2->setValue(50);
 
     QHBoxLayout* kdeSmoothLayout = new QHBoxLayout();
