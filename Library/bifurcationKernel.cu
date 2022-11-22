@@ -384,7 +384,8 @@ __host__ void bifurcation2D(double					in_tMax,
 
 
 
-__host__ void bifurcation3D(double					in_tMax,
+__host__ void bifurcation3D(
+	double					in_tMax,
 	int					in_nPts,
 	double				in_h,
 	double* in_initialConditions,
@@ -646,8 +647,8 @@ __global__ void bifuractionKernel(
 	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
 
 	// Change to dynamic / KISH
-	//double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
-	double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
+	double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	//double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
 
 
 	double* localParam = new double[in_amountOfParams];
@@ -679,6 +680,7 @@ __global__ void bifuractionKernel(
 
 		if (resultMode == PEAKFINDER_MODE && abs(x[in_nValue]) > thresholdValueOfMaxSignalValue)
 		{
+			in_dataSizes[idx] = 0;
 			delete[] localParam;
 			return;
 		}
@@ -702,6 +704,7 @@ __global__ void bifuractionKernel(
 
 		if (resultMode == PEAKFINDER_MODE && abs(x[in_nValue]) > thresholdValueOfMaxSignalValue)
 		{
+			in_dataSizes[idx] = 0;
 			delete[] localParam;
 			return;
 		}
@@ -718,8 +721,8 @@ __global__ void bifuractionKernel(
 	switch (resultMode)
 	{
 	case PEAKFINDER_MODE:
-		//peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
-		peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data, in_dataSizes);
+//		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
+		peakFinderForDBSCAN(idx, (float)in_h, (float)0, amountOfTPoints, in_data, in_data, in_dataSizes);
 		break;
 	case KDE_MODE:
 		//outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
@@ -729,27 +732,27 @@ __global__ void bifuractionKernel(
 
 		outSize = peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data, in_dataSizes);
 
-		float maxX = -99999999;
-		float maxY = -99999999;
+		float maxx = 0;//0.002
+		float maxy = 0; //0.1
 		size_t index = amountOfTPoints * idx;
 
 		for (int i = 0; i < outSize * 0.5; i++) {
-			if (in_data[index + i * 2] > maxX) {
-				maxX = in_data[index + i * 2];
+			if (in_data[index + i * 2] > maxx) {
+				maxx = in_data[index + i * 2];
 			}
-			if (in_data[index + i * 2 + 1] > maxY) {
-				maxY = in_data[index + i * 2];
+			if (in_data[index + i * 2 + 1] > maxy) {
+				maxy = in_data[index + i * 2];
 			}
 		}
-		maxX = 1 / maxX;
-		maxY = 1 / maxY;
-		for (int i = 0; i < outSize * 0.5; i++) {
-			in_data[index + i * 2] = in_data[index + i * 2] * maxX;
-			in_data[index + i * 2+1] = in_data[index + i * 2+1] * maxY;
+		maxx = 1 / maxx;
+		maxy = 1 / maxy;
+		for (int i = 0; i < outSize; i++) {
+			in_data[index + i * 2] = (in_data[index + i * 2]) * maxx;
+			in_data[index + i * 2 + 1] = in_data[index + i * 2 + 1] * maxy;
 		}
 
 
-		dbscan(in_data, amountOfTPoints, outSize*0.5, idx, 0.01f, in_dataSizes,0.25* amountOfTPoints);
+		dbscan(in_data, amountOfTPoints, outSize, idx, 0.005f, in_dataSizes,0.2* amountOfTPoints);
 
 		break;
 	}
@@ -864,6 +867,21 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 
 		break;
 	case DISSIPATA:
+
+		double X1[3];
+		h = h * 0.5;
+		X[0] = X[0] + h * (X[1]);
+		X[1] = X[1] + h * ((1 / a[1]) * (a[2] - ((X[1] > a[3]) ? a[4] : a[5]) * X[1] - sinf( (float)X[0]) - X[2]));
+		X[2] = X[2] + h * ((1 / a[0]) * (X[1] - X[2]));
+		X1[0] = X[0];
+		X1[1] = X[1];
+		X1[2] = X[2];
+		X[2] = (X1[2] + h * (1 / a[0]) * X[1]) / (1 + h * (1 / a[0]));
+		X[1] = X1[1] + h * ((1 / a[1]) * (a[2] - ((X[1] > a[3]) ? a[4] : a[5]) * X[1] - sinf((float)X[0]) - X[2]));
+		X[1] = X1[1] + h * ((1 / a[1]) * (a[2] - ((X[1] > a[3]) ? a[4] : a[5]) * X[1] - sinf((float)X[0]) - X[2]));
+		X[0] = X1[0] + h * (X[1]);
+
+
 		//double X1[3];
 		//h = 0.5 * h;
 		//X1[0] = X[0] + h * (-X[1] - X[2]);
@@ -875,13 +893,13 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//X[2] = X[2] + h * (a[2] + X1[2] * (X1[0] - a[3]));
 
 
-		h = 0.5 * h;
-		X[0] = X[0] + h * (-X[1] - X[2]);
-		X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
-		X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
-		X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
-		X[1] = X[1] + h * (X[0] + a[1] * X[1]);
-		X[0] = X[0] + h * (-X[1] - X[2]);
+		//h = 0.5 * h;
+		//X[0] = X[0] + h * (-X[1] - X[2]);
+		//X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
+		//X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
+		//X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
+		//X[1] = X[1] + h * (X[0] + a[1] * X[1]);
+		//X[0] = X[0] + h * (-X[1] - X[2]);
 
 
 		/*
@@ -1037,38 +1055,38 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 
 		break;
 		case TIMUR:
-			double X1[3];
-			double k[3][4];
-			int N = 3;
-			int i, j;
-			for (i = 0; i < N; i++) {
-				X1[i] = X[i];
-			}
-			for (j = 0; j < 4; j++) {
-				k[0][j] = (X1[2] - X1[0] * (a[1] + a[2])) * a[3] * a[4];
-				k[1][j] = (a[5] * X1[0] * X1[2] / 10 * a[6] * a[7] - X1[1] * (a[8] + a[2])) * a[3] * a[4];
-				k[2][j] = (-a[5] * X1[0] * a[9] + a[5] * X1[1] * a[10]) * a[11];
+			//double X1[3];
+			//double k[3][4];
+			//int N = 3;
+			//int i, j;
+			//for (i = 0; i < N; i++) {
+			//	X1[i] = X[i];
+			//}
+			//for (j = 0; j < 4; j++) {
+			//	k[0][j] = (X1[2] - X1[0] * (a[1] + a[2])) * a[3] * a[4];
+			//	k[1][j] = (a[5] * X1[0] * X1[2] / 10 * a[6] * a[7] - X1[1] * (a[8] + a[2])) * a[3] * a[4];
+			//	k[2][j] = (-a[5] * X1[0] * a[9] + a[5] * X1[1] * a[10]) * a[11];
 
-				if (j == 3) {
-					for (i = 0; i < N; i++) {
-						X1[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
-					}
-				}
-				else if (j == 2) {
-					for (i = 0; i < N; i++) {
-						X1[i] = X[i] + h * k[i][j];
-					}
-				}
-				else {
-					for (i = 0; i < N; i++) {
-						X1[i] = X[i] + 0.5 * h * k[i][j];
-					}
-				}
-			}
-			for (i = 0; i < N; i++) {
-				X[i] = X1[i];
-			}
-			break;
+			//	if (j == 3) {
+			//		for (i = 0; i < N; i++) {
+			//			X1[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
+			//		}
+			//	}
+			//	else if (j == 2) {
+			//		for (i = 0; i < N; i++) {
+			//			X1[i] = X[i] + h * k[i][j];
+			//		}
+			//	}
+			//	else {
+			//		for (i = 0; i < N; i++) {
+			//			X1[i] = X[i] + 0.5 * h * k[i][j];
+			//		}
+			//	}
+			//}
+			//for (i = 0; i < N; i++) {
+			//	X[i] = X1[i];
+			//}
+			//break;
 	}
 }
 
@@ -1109,35 +1127,69 @@ __device__ int peakFinder(int idx, float prePeakFinder, size_t amountOfTPoints, 
 	return _outSize;
 }
 
-__device__ int peakFinderForDBSCAN(int idx, double in_h, double prePeakFinder, size_t amountOfTPoints, float* in_data, float* out_data, int* out_dataSizes)
+__device__ int peakFinderForDBSCAN(int idx, float in_h, float prePeakFinder, size_t amountOfTPoints, float* in_data, float* out_data, int* out_dataSizes)
 {
-
+	size_t index = idx * amountOfTPoints;
 	//outSize = peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data);
 	int _outSize = 0;
-	for (size_t i = 3 + prePeakFinder * amountOfTPoints; i < amountOfTPoints - 1; ++i)
+
+	//for (size_t i = 1 + prePeakFinder * amountOfTPoints; i < amountOfTPoints - 1; ++i)
+	//{
+	//	if (in_data[index + i] > in_data[index + i - 1] && in_data[index + i] > in_data[index + i + 1])
+	//	{
+	//		out_data[index + _outSize*2] = in_data[index + i];
+	//		out_data[index + _outSize*2 + 1] = i;
+	//		_outSize++;
+	//	}
+	//	else if (in_data[index + i] > in_data[index + i - 1] && in_data[index + i] == in_data[index + i + 1])
+	//	{
+	//		for (size_t k = i; k < amountOfTPoints - 1; ++k)
+	//		{
+	//			if (in_data[index + k] < in_data[index + k + 1])
+	//			{
+	//				break;
+	//				i = k;
+	//			}
+	//			if (in_data[index + k] == in_data[index + k + 1])
+	//				continue;
+	//			if (in_data[index + k] > in_data[index + k + 1])
+	//			{
+	//				out_data[index + _outSize*2] = in_data[index + k];
+	//				out_data[index + _outSize*2 + 1] = k;
+	//				_outSize++;
+	//				i = k + 1;
+	//				break;
+	//			}
+	//		}   
+	//	}
+	//}
+	
+
+		//int _outSize = 0;
+	for (int i = 3 + prePeakFinder * amountOfTPoints; i < amountOfTPoints - 1; ++i)
 	{
-		if (in_data[idx * amountOfTPoints + i] > in_data[idx * amountOfTPoints + i - 1] && in_data[idx * amountOfTPoints + i] > in_data[idx * amountOfTPoints + i + 1])
+		if (in_data[index + i] > in_data[index + i - 1] && in_data[index + i] > in_data[index + i + 1])
 		{
-			out_data[idx * amountOfTPoints + _outSize] = in_data[idx * amountOfTPoints + i];
-			out_data[idx * amountOfTPoints + _outSize + 1] = i;
-			_outSize += 2;
+			out_data[index + _outSize*2] = in_data[index + i];
+			out_data[index + _outSize*2+1] = i;
+			++_outSize;
 		}
-		else if (in_data[idx * amountOfTPoints + i] > in_data[idx * amountOfTPoints + i - 1] && in_data[idx * amountOfTPoints + i] == in_data[idx * amountOfTPoints + i + 1])
+		else if (in_data[index + i] > in_data[index + i - 1] && in_data[index + i] == in_data[index + i + 1])
 		{
 			for (size_t k = i; k < amountOfTPoints - 1; ++k)
 			{
-				if (in_data[idx * amountOfTPoints + k] < in_data[idx * amountOfTPoints + k + 1])
+				if (in_data[index + k] < in_data[index + k + 1])
 				{
 					break;
 					i = k;
 				}
-				if (in_data[idx * amountOfTPoints + k] == in_data[idx * amountOfTPoints + k + 1])
+				if (in_data[index + k] == in_data[index + k + 1])
 					continue;
-				if (in_data[idx * amountOfTPoints + k] > in_data[idx * amountOfTPoints + k + 1])
+				if (in_data[index + k] > in_data[index + k + 1])
 				{
-					out_data[idx * amountOfTPoints + _outSize] = in_data[idx * amountOfTPoints + k];
-					out_data[idx * amountOfTPoints + _outSize + 1] = k;
-					_outSize += 2;
+					out_data[index + _outSize * 2] = in_data[index + k];
+					out_data[index + _outSize * 2 + 1] = k;
+					_outSize++;
 					i = k + 1;
 					break;
 				}
@@ -1145,20 +1197,26 @@ __device__ int peakFinderForDBSCAN(int idx, double in_h, double prePeakFinder, s
 		}
 	}
 
+	if (_outSize > 1) {
+		for (size_t i = 0; i < _outSize-1; i++)
+		{
+			out_data[index + i * 2] = out_data[index + i * 2 + 2];
+			out_data[index + i * 2 + 1] = (float)((out_data[index + i * 2 + 3] - out_data[index + i * 2 + 1]) * in_h);
+			//delta1 = out_data[i + 1];
+			//out_data[index + i * 2 + 1] = (float)((out_data[index + i * 2 + 3] - out_data[index + i * 2 + 1]));
+			//delta2 = delta1;
+		}
+		_outSize = _outSize * 1 - 1;
+	}
+	else {
+		_outSize = 0;
+	}
 
 	//float delta1 = 0;
 	//float delta2 = out_data[idx * amountOfTPoints + 1];
 	
-
-	for (size_t i = idx * amountOfTPoints; i < idx * amountOfTPoints + _outSize-2; i += 2)
-	{
-		out_data[i] = out_data[i + 2];
-		//delta1 = out_data[i + 1];
-		out_data[i + 1] = (out_data[i + 3] - out_data[i + 1]) * in_h;
-		//delta2 = delta1;
-	}
-
-	_outSize = _outSize - 2;
+	//out_data[idx * amountOfTPoints + 1] = 999;
+	//out_data[idx * amountOfTPoints + 0] = _outSize;
 
 	out_dataSizes[idx] = _outSize;
 	return _outSize;
@@ -1414,7 +1472,7 @@ __device__ void expand_cluster(float* input, int index, int amountOfPeaks, int p
 
 __device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int idx, float eps, int* dataSizes, int criticalValueOfPeaks)
 {
-	if (amountOfPeaks == 0)
+	if (amountOfPeaks <= 0)
 	{
 		dataSizes[idx] = 0;
 		return;
@@ -1429,31 +1487,32 @@ __device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int 
 
 	if (amountOfPeaks > criticalValueOfPeaks)
 	{
-		dataSizes[idx] = criticalValueOfPeaks;
+		dataSizes[idx] = 0;
 		return;
 	}
 
 
 	//dbscan(in_data, amountOfTPoints, outSize, idx, 0.5f, in_dataSizes);
 	int cluster = 0;
-	int NumNeibor = 1;
+	int NumNeibor = 0;
 
 
 	int index = amountOfTPoints * idx;
 
 	for (int i = index + amountOfPeaks * 2; i < index + amountOfPeaks * 4; i++) {
-		input[i] = -1;
+		input[i] = 0;
 	}
 
 	for (int i = 0; i < amountOfPeaks; i++)
-		if (NumNeibor > 1)
+		if (NumNeibor >= 1)
 		{
-			i = input[NumNeibor - 2];
-			input[NumNeibor - 2] = -1;
+			i = input[index + amountOfPeaks * 3 + NumNeibor - 1];
+			input[index + amountOfPeaks * 3 + NumNeibor - 1] = 0;
 			NumNeibor = NumNeibor - 1;
-			for (int k = 0; k < amountOfPeaks; k++) {
-				if (i != k && input[index + amountOfPeaks * 2 + k] ==-1) {
-					if (distance(input[index + i], input[index + i + 1], input[index + k], input[index + k + 1])<= eps) {
+			for (int k = 0; k < amountOfPeaks - 1; k++) {
+				if (i != k && input[index + amountOfPeaks * 2 + k] == 0) {
+					//if (distance(input[index + i], input[index + i + 1], input[index + k], input[index + k + 1])<= eps) {
+					if (distance(input[index + i * 2], input[index + i * 2 + 1], input[index + k * 2], input[index + k * 2 + 1]) < eps) {
 						input[index + amountOfPeaks * 2 + k] = cluster;
 						input[index + amountOfPeaks * 3 + k] = k;
 						NumNeibor++;
@@ -1461,13 +1520,14 @@ __device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int 
 				}
 			}
 		}
-		else if (input[index + amountOfPeaks * 2 + i] == -1) {
-			NumNeibor = 1;
+		else if (input[index + amountOfPeaks * 2 + i] == 0) {
+			NumNeibor = 0;
 			cluster++;
 			input[index + amountOfPeaks * 2 + i] = cluster;
-			for (int k = 0; k < amountOfPeaks; k++) {
-				if (i != k && input[index + amountOfPeaks * 2 + k] == -1) {
-					if (distance(input[index + i], input[index + i + 1], input[index + k], input[index + k + 1]) <= eps) {
+			for (int k = 0; k < amountOfPeaks - 1; k++) {
+				if (i != k && input[index + amountOfPeaks * 2 + k] == 0) {
+					//if (distance(input[index + i], input[index + i + 1], input[index + k], input[index + k + 1])<= eps) {
+					if (distance(input[index + i*2], input[index + i*2 + 1], input[index + k*2], input[index + k*2 + 1]) < eps) {
 						input[index + amountOfPeaks * 2 + k] = cluster;
 						input[index + amountOfPeaks * 3 + k] = k;
 						NumNeibor++;
@@ -1475,7 +1535,12 @@ __device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int 
 				}
 			}
 		}
+	for (int i = 0; i < amountOfPeaks; i++) {
 
+	}
+	//for (int i = index + amountOfPeaks * 2; i < index + amountOfPeaks * 4; i++) {
+	//	input[i] = 0;
+	//}
 
 	dataSizes[idx] = cluster;
 

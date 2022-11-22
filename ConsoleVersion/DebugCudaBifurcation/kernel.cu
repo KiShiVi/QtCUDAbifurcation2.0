@@ -14,10 +14,12 @@ int main()
 	//str = str + std::to_string((float)0.001) + ".csv";
 	std::atomic<int> a;
 	a.store(0);
-	double initialConditions[4]{ -0.2f,-0.2f,-0.2f,0.2f };
+	//double initialConditions[4]{ -0.2,-0.2,-0.2,0.2 };
+	double initialConditions[3]{ 3.14,-1,1 };
 	////double params[3]{ 0.5,1.0,1.0 };
 	////double params[4]{ 0.5,10,28,2.7 };
-	double params[4]{ 0.5,0.2,0.9,5.7 };
+	/*double params[4]{ 0.5,10,28,2.7 };*/
+	double params[6]{ 2.7,0.75,1.2,6.9,0.367,0.0478 };
 	int AmountPar = sizeof(params) / sizeof(double);
 	//
 
@@ -26,45 +28,76 @@ int main()
 	//	500,		//int					in_nPts,
 	//	1e-2,		//double				in_h,
 	//	initialConditions,		//double* in_initialConditions,
-	//	0.05,		//double				in_paramValues1,
-	//	0.45,		//double				in_paramValues2,
+	//	2,		//double				in_paramValues1,
+	//	3,		//double				in_paramValues2,
 	//	0,		//int					in_nValue,
-	//	4500,		//double				in_prePeakFinderSliceK,
-	//	200000,		//int					in_thresholdValueOfMaxSignalValue,
+	//	50,		//double				in_prePeakFinderSliceK,
+	//	2000000,		//int					in_thresholdValueOfMaxSignalValue,
 	//	AmountPar,		//int					in_amountOfParams,
 	//	DISSIPATA,		//int					in_discreteModelMode,
 	//	1,		//int					in_prescaller,
 	//	params,		//double* in_params,
-	//	1,		//int					in_mode,
+	//	0,		//int					in_mode,
 	//	0.9,		//double				in_memoryLimit,
 	//	"C:\\CUDA\\My\\mat1d.csv",		//std::string			in_outPath,
 	//	1,		//bool				in_debug,
 	//	a		//std::atomic<int> & progress);
 	//);
 
+	//	bifurcation3D(
+	//	300, //double					in_tMax,
+	//	100, //int					in_nPts,
+	//	1e-2, //double				in_h,
+	//	initialConditions, //double* in_initialConditions,
+	//	2,//				in_paramValues1,
+	//	3,//				in_paramValues2,
+	//	0.5,//				in_paramValues3,
+	//	1.0,//				in_paramValues4,
+	//	1,//double				in_paramValues5,
+	//	2,//double				in_paramValues6,
+	//	1,//int					in_nValue,
+	//	50,//double				in_prePeakFinderSliceK,
+	//	20000, //int					in_thresholdValueOfMaxSignalValue,
+	//	AmountPar, //int					in_amountOfParams,
+	//	DISSIPATA, //int					in_discreteModelMode,
+	//	1,//int					in_prescaller,
+	//	params, //double* in_params,
+	//	0, //int					in_mode1,
+	//	1, //int					in_mode2,
+	//	2, //int					in_mode3,
+	//	10, //int					in_kdeSampling,
+	//	-10, //float				in_kdeSamplesInterval1,
+	//	20, //float				in_kdeSamplesInterval2,
+	//	1e-2, //float				in_kdeSamplesSmooth,
+	//	0.95, //double				in_memoryLimit,
+	//	"C:\\CUDA\\My\\mat_h_3D.csv", //std::string			in_outPath,
+	//	1, //bool				in_debug,
+	//	a //std::atomic<int> & progress
+	//);
+
 			bifurcation2D(
-			200,		//int					in_tMax,
-			200,		//int					in_nPts,
-			0.01,		//double				in_h,
+			300,			//int					in_tMax,
+			1920,			//int					in_nPts,
+			0.01,			//double				in_h,
 			initialConditions,		//double* in_initialConditions,
-			0.05,		//double				in_paramValues1,
-			0.45,		//double				in_paramValues2,
-			0.05,			//double				in_paramValues3,
-			1,			//double				in_paramValues4,
-			0,			//int					in_nValue,
-			1000,		//double				in_prePeakFinderSliceK, 
-			200000,		//int					in_thresholdValueOfMaxSignalValue,
-			AmountPar,	//int					in_amountOfParams,
+			2.8,				//double				in_paramValues1,
+			3.1,				//double				in_paramValues2,
+			0.5,				//double				in_paramValues3,
+			0.65,				//double				in_paramValues4,
+			1,				//int					in_nValue,
+			100,				//double				in_prePeakFinderSliceK, 
+			200000,			//int					in_thresholdValueOfMaxSignalValue,
+			AmountPar,		//int					in_amountOfParams,
 			DISSIPATA,		//int					in_discreteModelMode,
-			1,			//int					in_prescaller,
-			params,		//double* in_params,
-			1,			//int					in_mode1,
-			2,			//int					in_mode2,
-			10,			//int					in_kdeSampling,
-			-20,		//double				in_kdeSamplesInterval1,
-			70,			//double				in_kdeSamplesInterval2,
-			5e-2,		//double				in_kdeSamplesSmooth,
-			0.95,		//double				in_memoryLimit,
+			1,				//int					in_prescaller,
+			params,			//double* in_params,
+			0,				//int					in_mode1,
+			1,				//int					in_mode2,
+			10,				//int					in_kdeSampling,
+			-5,				//double				in_kdeSamplesInterval1,
+			15,				//double				in_kdeSamplesInterval2,
+			1e-2,			//double				in_kdeSamplesSmooth,
+			0.95,			//double				in_memoryLimit,
 			"C:\\CUDA\\My\\mat_h_2D.csv", //std::string			in_outPath,
 			1,		//bool				in_debug,
 			a		//std::atomic<int> & progress);

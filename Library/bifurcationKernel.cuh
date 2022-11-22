@@ -103,7 +103,8 @@ __host__ void bifurcation2D(double					in_tMax,
 
 
 // Обертка, которая для каждой бифуркационки будет своя!
-__host__ void bifurcation3D(double					in_tMax,
+__host__ void bifurcation3D(
+	double					in_tMax,
 	int					in_nPts,
 	double				in_h,
 	double*				in_initialConditions,
@@ -142,8 +143,8 @@ __device__ int peakFinder(	int idx,
 							float* out_data);
 
 __device__ int peakFinderForDBSCAN(int idx,
-	double in_h,
-	double prePeakFinder,
+	float in_h,
+	float prePeakFinder,
 	size_t amountOfTPoints,
 	float* in_data,
 	float* out_data,
