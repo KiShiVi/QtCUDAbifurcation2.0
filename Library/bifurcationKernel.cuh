@@ -17,14 +17,16 @@ enum DISCRETE_MODEL
 	CHEN,
 	LORENZ,
 	LORENZ_RYBIN,
-	DEFF
+	CONSERVA,
+	DISSIPATA,
+	TIMUR
 };
 
 
 __device__ void calculateDiscreteModel(int mode, double* x, double* values, double h);
 
 __global__ void bifuractionKernel(	int in_nPts,
-									int in_TMax,
+									double in_TMax,
 									double in_h,
 									double* in_initialConditions,
 									int in_nValue,
@@ -44,13 +46,13 @@ __global__ void bifuractionKernel(	int in_nPts,
 									double* in_paramValues3 = nullptr,
 									int in_mode3 = -1,
 									int in_kdeSampling = 0,
-									double in_kdeSamplesInterval1 = 0.0f,
-									double in_kdeSamplesInterval2 = 0.0f,
-									double in_kdeSmoothH = 0.0f);
+									float in_kdeSamplesInterval1 = 0.0f,
+									float in_kdeSamplesInterval2 = 0.0f,
+									float in_kdeSmoothH = 0.0f);
 
 
 // Обертка, которая для каждой бифуркационки будет своя!
-__host__ void bifurcation1D(float					in_tMax,
+__host__ void bifurcation1D(double					in_tMax,
 							int					in_nPts,
 							double				in_h,
 							double*				in_initialConditions,
@@ -72,7 +74,7 @@ __host__ void bifurcation1D(float					in_tMax,
 
 
 // Обертка, которая для каждой бифуркационки будет своя!
-__host__ void bifurcation2D(float					in_tMax,
+__host__ void bifurcation2D(double					in_tMax,
 	int					in_nPts,
 	double				in_h,
 	double*				in_initialConditions,
@@ -90,9 +92,9 @@ __host__ void bifurcation2D(float					in_tMax,
 	int					in_mode1,
 	int					in_mode2,
 	int					in_kdeSampling,
-	double				in_kdeSamplesInterval1,
-	double				in_kdeSamplesInterval2,
-	double				in_kdeSamplesSmooth,
+	float				in_kdeSamplesInterval1,
+	float				in_kdeSamplesInterval2,
+	float				in_kdeSamplesSmooth,
 	double				in_memoryLimit,
 	std::string			in_outPath,
 	bool				in_debug,
@@ -101,7 +103,7 @@ __host__ void bifurcation2D(float					in_tMax,
 
 
 // Обертка, которая для каждой бифуркационки будет своя!
-__host__ void bifurcation3D(float					in_tMax,
+__host__ void bifurcation3D(double					in_tMax,
 	int					in_nPts,
 	double				in_h,
 	double*				in_initialConditions,
@@ -122,9 +124,9 @@ __host__ void bifurcation3D(float					in_tMax,
 	int					in_mode2,
 	int					in_mode3,
 	int					in_kdeSampling,
-	double				in_kdeSamplesInterval1,
-	double				in_kdeSamplesInterval2,
-	double				in_kdeSamplesSmooth,
+	float				in_kdeSamplesInterval1,
+	float				in_kdeSamplesInterval2,
+	float				in_kdeSamplesSmooth,
 	double				in_memoryLimit,
 	std::string			in_outPath,
 	bool				in_debug,
@@ -139,6 +141,13 @@ __device__ int peakFinder(	int idx,
 							int* out_dataSizes, 
 							float* out_data);
 
+__device__ int peakFinderForDBSCAN(int idx,
+	double in_h,
+	double prePeakFinder,
+	size_t amountOfTPoints,
+	float* in_data,
+	float* out_data,
+	int* out_dataSizes);
 
 
 __device__ void kdeMethod(int idx,
@@ -152,7 +161,23 @@ __device__ void kdeMethod(int idx,
 	float kdeSmoothH,
 	int criticalValueOfPeaks);
 
+__device__ void DBscan(int idx,
+	float* data,
+	int* kdeResult,
+	int kdeSampling,
+	int _outSize,
+	float eps,
+	float kdeSamplesInterval2,
+	size_t amountOfTPoints,
+	int criticalValueOfPeaks);
 
+__device__ float distance(float x1, float y1, float x2, float y2);
+
+__device__ void expand_cluster(float* input, int index, int amountOfPeaks, int p, float eps);
+
+__device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int idx, float eps, int* dataSizes, int criticalValueOfPeaks);
+
+__device__ float customAbs(float value);
 
 // return in "out" array [a, b] with "amount" elements
 template <class T1, class T2>
