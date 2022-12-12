@@ -19,7 +19,9 @@ enum DISCRETE_MODEL
 	LORENZ_RYBIN,
 	CONSERVA,
 	DISSIPATA,
-	TIMUR
+	TIMUR,
+	CompCD,
+	RK4
 };
 
 
@@ -162,15 +164,6 @@ __device__ void kdeMethod(int idx,
 	float kdeSmoothH,
 	int criticalValueOfPeaks);
 
-__device__ void DBscan(int idx,
-	float* data,
-	int* kdeResult,
-	int kdeSampling,
-	int _outSize,
-	float eps,
-	float kdeSamplesInterval2,
-	size_t amountOfTPoints,
-	int criticalValueOfPeaks);
 
 __device__ float distance(float x1, float y1, float x2, float y2);
 
