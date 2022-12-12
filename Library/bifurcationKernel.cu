@@ -648,8 +648,8 @@ __global__ void bifuractionKernel(
 	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
 	size_t index = amountOfTPoints * idx;
 	// Change to dynamic / KISH
-	//double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
-	double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
+	double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	//double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
 
 
 	double* localParam = new double[in_amountOfParams];
@@ -795,7 +795,7 @@ __global__ void bifuractionKernel(
 			in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
 		}
 
-		dbscan(in_data, amountOfTPoints, outSize, idx, 0.01f, in_dataSizes, 0.2 * amountOfTPoints);
+		dbscan(in_data, amountOfTPoints, outSize, idx, 0.01f, in_dataSizes, 0.25 * amountOfTPoints);
 //		in_dataSizes[idx] = (int)(miny*1000);
 		break;
 	}
@@ -817,12 +817,16 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//x[0] = x[0] + localH2 * (-x[1] - x[2]);
 		break;
 	case CHEN: // 40 3 28
-		//x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
-		//x[1] = (x[1] + localH1 * x[0] * (values[3] - values[1] - x[2])) / (1 - localH1 * values[3]);
-		//x[2] = (x[2] + localH1 * x[0] * x[1]) / (1 + localH1 * values[2]);
-		//x[2] = x[2] + localH2 * (x[0] * x[1] - values[2] * x[2]);
-		//x[1] = x[1] + localH2 * (x[0] * (values[3] - values[1] - x[2]) + values[3] * x[1]);
-		//x[0] = x[0] + localH2 * (values[1] * (x[1] - x[0]));
+		double h1 = h * a[0];
+		double h2 = h * (1 - a[0]);
+
+		X[0] = (X[0] + h1 * a[1] * X[1]) / (1 + h1 * a[1]);
+		X[1] = (X[1] + h1 * X[0] * (a[3] - a[1] - X[2])) / (1 - h1 * a[3]);
+		X[2] = (X[2] + h1 * X[0] * X[1]) / (1 + h1 * a[2]);
+
+		X[2] = X[2] + h2 * (X[0] * X[1] - a[2] * X[2]);
+		X[1] = X[1] + h2 * (X[0] * (a[3] - a[1] - X[2]) + a[3] * X[1]);
+		X[0] = X[0] + h2 * (a[1] * (X[1] - X[0]));
 		break;
 	case LORENZ: // 10 28 2.6667
 		//x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
@@ -964,13 +968,13 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//X[2] = X[2] + h * (a[2] + X1[2] * (X1[0] - a[3]));
 
 
-		h = 0.5 * h;
-		X[0] = X[0] + h * (-X[1] - X[2]);
-		X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
-		X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
-		X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
-		X[1] = X[1] + h * (X[0] + a[1] * X[1]);
-		X[0] = X[0] + h * (-X[1] - X[2]);
+		//h = 0.5 * h;
+		//X[0] = X[0] + h * (-X[1] - X[2]);
+		//X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
+		//X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
+		//X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
+		//X[1] = X[1] + h * (X[0] + a[1] * X[1]);
+		//X[0] = X[0] + h * (-X[1] - X[2]);
 
 
 		/*
@@ -1160,41 +1164,41 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//break;
 	case CompCD:
 
-		double h_local = h * 0.5;
-		double h1 = h_local * 1.35120719196;
-		double h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
-		//h_local = h * (-1.702414383919);
-		h1 = h_local * (-1.702414383919);
-		h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
-		h1 = h_local * 1.35120719196;
-		h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		//double h_local = h * 0.5;
+		//double h1 = h_local * 1.35120719196;
+		//double h2 = h1;
+		//X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		////h_local = h * (-1.702414383919);
+		//h1 = h_local * (-1.702414383919);
+		//h2 = h1;
+		//X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		//h1 = h_local * 1.35120719196;
+		//h2 = h1;
+		//X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
 		break;
 	case RK4:
-		double X1[4];
+	/*	double X1[4];
 		double k[4][4];
 		int N = 4;
 		int i, j;
@@ -1221,7 +1225,7 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 					X1[i] = X[i] + 0.5 * h * k[i][j];
 				}
 			}
-		}
+		}*/
 		break;
 
 	}
