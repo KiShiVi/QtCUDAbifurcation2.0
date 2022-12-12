@@ -77,11 +77,11 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\..\Library\bifurcationKernel.cu" />
+    <CudaCompile Include="..\..\Library\bifurcationKernel.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\Library\bifurcationKernel.cuh" />
+    <ClInclude Include="..\..\Library\bifurcationKernel.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
