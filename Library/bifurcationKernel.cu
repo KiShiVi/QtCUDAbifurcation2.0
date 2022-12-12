@@ -1,15 +1,31 @@
 ﻿#include <stdexcept>
 #include <iostream>
+#include <stdio.h>
 #include <fstream>
 #include <iomanip>
 
 #include "bifurcationKernel.cuh"
 
+
+__host__ void checkCudaError(cudaError_t error, std::string msg, bool debug)
+{
+	if (error != cudaSuccess)
+	{
+		if (debug)
+		{
+			std::cout << msg;
+			std::getchar();
+		}
+		exit(1);
+	}
+}
+
+
 __host__ void bifurcation1D(
-	double					in_tMax,
+	double				in_tMax,
 	int					in_nPts,
 	double				in_h,
-	double* in_initialConditions,
+	double*				in_initialConditions,
 	double				in_paramValues1,
 	double				in_paramValues2,
 	int					in_nValue,
@@ -59,8 +75,8 @@ __host__ void bifurcation1D(
 	double* d_params;
 	double* d_initialConditions;
 
-	cudaMalloc((void**)& d_params, in_amountOfParams * sizeof(double));
-	cudaMalloc((void**)& d_initialConditions, in_amountOfParams * sizeof(double));
+	cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(double));
+	cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(double));
 	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
 	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
@@ -88,9 +104,9 @@ __host__ void bifurcation1D(
 		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
 		h_dataSizes = (int*)malloc(nPtsLimiter * sizeof(int));
 
-		cudaMalloc((void**)& d_data, nPtsLimiter * amountOfTPoints * sizeof(float));
-		cudaMalloc((void**)& d_dataSizes, nPtsLimiter * sizeof(int));
-		cudaMalloc((void**)& d_dataTimes, nPtsLimiter * sizeof(double));
+		cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(float));
+		cudaMalloc((void**)&d_dataSizes, nPtsLimiter * sizeof(int));
+		cudaMalloc((void**)&d_dataTimes, nPtsLimiter * sizeof(double));
 
 		cudaMemcpy(d_dataTimes, h_dataTimes, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
@@ -174,10 +190,11 @@ __host__ void bifurcation1D(
 
 
 __host__ void bifurcation2D(
-	double					in_tMax,
+	double				in_tMax,
 	int					in_nPts,
-	double				in_h,
-	double* in_initialConditions,
+	double				in_h1,
+	double				in_h2,
+	double*				in_initialConditions,
 	double				in_paramValues1,
 	double				in_paramValues2,
 	double				in_paramValues3,
@@ -188,7 +205,7 @@ __host__ void bifurcation2D(
 	int					in_amountOfParams,
 	int					in_discreteModelMode,
 	int					in_prescaller,
-	double* in_params,
+	double*				in_params,
 	int					in_mode1,
 	int					in_mode2,
 	int					in_kdeSampling,
@@ -198,13 +215,12 @@ __host__ void bifurcation2D(
 	double				in_memoryLimit,
 	std::string			in_outPath,
 	bool				in_debug,
-	std::atomic<int> & progress)
+	std::atomic<int>& progress)
 {
 	std::ofstream outFileStream;
 	outFileStream.open(in_outPath);
 	outFileStream << in_paramValues1 << ", " << in_paramValues2 << "\n" << in_paramValues3 << ", " << in_paramValues4 << "\n";
 
-	size_t amountOfTPoints = in_tMax / in_h / in_prescaller;
 
 	double* paramValues1 = nullptr;
 	double* paramValues2 = nullptr;
@@ -213,9 +229,11 @@ __host__ void bifurcation2D(
 	paramValues2 = (double*)malloc(sizeof(double) * in_nPts * in_nPts);
 
 	getParamsAndSymmetry2D(paramValues1, paramValues2,
-		in_paramValues1, in_paramValues2,
+		in_h1, in_h2,
 		in_paramValues3, in_paramValues4,
-		in_nPts);
+		in_nPts, true);
+
+	size_t amountOfTPoints = in_tMax / paramValues1[0] / in_prescaller;
 
 	size_t freeMemory;
 	size_t totalMemory;
@@ -248,11 +266,11 @@ __host__ void bifurcation2D(
 	double* d_initialConditions;
 
 
-	cudaMalloc((void**)& d_params, in_amountOfParams * sizeof(double));
-	cudaMalloc((void**)& d_initialConditions, in_amountOfParams * sizeof(double));
+	checkCudaError(cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(double)), "269", true);
+	checkCudaError(cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(double)), "270", true);
 
-	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
-	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	checkCudaError(cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "272", true);
+	checkCudaError(cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "273", true);
 
 	size_t amountOfIteration = (size_t)std::ceilf((double)(in_nPts * in_nPts) / (double)nPtsLimiter);
 
@@ -283,13 +301,13 @@ __host__ void bifurcation2D(
 
 		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
 
-		cudaMalloc((void**)& d_kdeResult, nPtsLimiter * sizeof(int));
-		cudaMalloc((void**)& d_data, nPtsLimiter * amountOfTPoints * sizeof(double));
-		cudaMalloc((void**)& d_paramValues1, nPtsLimiter * sizeof(double));
-		cudaMalloc((void**)& d_paramValues2, nPtsLimiter * sizeof(double));
+		checkCudaError(cudaMalloc((void**)&d_kdeResult, nPtsLimiter * sizeof(int)), "304", true);
+		checkCudaError(cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(double)), "305", true);
+		checkCudaError(cudaMalloc((void**)&d_paramValues1, nPtsLimiter * sizeof(double)), "306", true);
+		checkCudaError(cudaMalloc((void**)&d_paramValues2, nPtsLimiter * sizeof(double)), "307", true);
 
-		cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
-		cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		checkCudaError(cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "309", true);
+		checkCudaError(cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "310", true);
 
 		int blockSize;
 		int minGridSize;
@@ -302,7 +320,7 @@ __host__ void bifurcation2D(
 		bifuractionKernel << <gridSize, blockSize >> > (
 			nPtsLimiter,
 			in_tMax,
-			in_h,
+			paramValues1[0],
 			d_initialConditions,
 			in_nValue,
 			in_prePeakFinderSliceK,
@@ -327,14 +345,14 @@ __host__ void bifurcation2D(
 
 
 		//cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyDeviceToHost);
-		cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+		checkCudaError(cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost), "348", true);
 
 		cudaDeviceSynchronize();
 
-		cudaFree(d_data);
-		cudaFree(d_kdeResult);
-		cudaFree(d_paramValues1);
-		cudaFree(d_paramValues2);
+		checkCudaError(cudaFree(d_data), "352", true);
+		checkCudaError(cudaFree(d_kdeResult), "353", true);
+		checkCudaError(cudaFree(d_paramValues1), "354", true);
+		checkCudaError(cudaFree(d_paramValues2), "355", true);
 
 		for (size_t i = 0; i < nPtsLimiter; ++i)
 			if (outFileStream.is_open())
@@ -413,7 +431,7 @@ __host__ void bifurcation3D(
 	double				in_memoryLimit,
 	std::string			in_outPath,
 	bool				in_debug,
-	std::atomic<int> & progress)
+	std::atomic<int>& progress)
 {
 	std::ofstream outFileStream;
 	outFileStream.open(in_outPath);
@@ -468,8 +486,8 @@ __host__ void bifurcation3D(
 	double* d_initialConditions;
 
 
-	cudaMalloc((void**)& d_params, in_amountOfParams * sizeof(double));
-	cudaMalloc((void**)& d_initialConditions, in_amountOfParams * sizeof(double));
+	cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(double));
+	cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(double));
 
 	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
 	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
@@ -507,11 +525,11 @@ __host__ void bifurcation3D(
 
 		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
 
-		cudaMalloc((void**)& d_kdeResult, nPtsLimiter * sizeof(int));
-		cudaMalloc((void**)& d_data, nPtsLimiter * amountOfTPoints * sizeof(double));
-		cudaMalloc((void**)& d_paramValues1, nPtsLimiter * sizeof(double));
-		cudaMalloc((void**)& d_paramValues2, nPtsLimiter * sizeof(double));
-		cudaMalloc((void**)& d_paramValues3, nPtsLimiter * sizeof(double));
+		cudaMalloc((void**)&d_kdeResult, nPtsLimiter * sizeof(int));
+		cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(double));
+		cudaMalloc((void**)&d_paramValues1, nPtsLimiter * sizeof(double));
+		cudaMalloc((void**)&d_paramValues2, nPtsLimiter * sizeof(double));
+		cudaMalloc((void**)&d_paramValues3, nPtsLimiter * sizeof(double));
 
 		cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
 		cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
@@ -645,21 +663,22 @@ __global__ void bifuractionKernel(
 		return;
 
 	size_t amountOfTPoints = in_TMax / in_h / in_prescaller;
-	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
+	size_t amountOfTPointsSelf = in_TMax / in_paramValues1[idx] / in_prescaller;
+	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_paramValues1[idx];
 	size_t index = amountOfTPoints * idx;
 	// Change to dynamic / KISH
-	//double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
-	double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
+	double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	//double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
 
 
 	double* localParam = new double[in_amountOfParams];
 	for (int i = 0; i < in_amountOfParams; ++i)
 		localParam[i] = in_params[i];
 
-	localParam[in_mode1] = in_paramValues1[idx];
+	localParam[0] = in_paramValues1[idx];
 
 	if (in_paramValues2 != nullptr)
-		localParam[in_mode2] = in_paramValues2[idx];
+		localParam[1] = in_paramValues2[idx];
 
 	if (in_paramValues3 != nullptr)
 		localParam[in_mode3] = in_paramValues3[idx];
@@ -689,7 +708,7 @@ __global__ void bifuractionKernel(
 	}
 
 	//Calculating
-	for (size_t i = 0; i < amountOfTPoints; ++i)
+	for (size_t i = 0; i < amountOfTPointsSelf; ++i)
 	{
 		in_data[index + i] = (float)(x[in_nValue]);
 		for (size_t j = 0; j < in_prescaller - 1; ++j)
@@ -723,7 +742,7 @@ __global__ void bifuractionKernel(
 	{
 	case PEAKFINDER_MODE:
 		//		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
-		peakFinderForDBSCAN(idx, (float)in_h, (float)0, amountOfTPoints, in_data, in_data, in_dataSizes);
+		peakFinderForDBSCAN(idx, (float)localParam[1], (float)0, amountOfTPointsSelf, in_data, in_data, in_dataSizes);
 		break;
 	case KDE_MODE:
 		//outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
@@ -731,7 +750,7 @@ __global__ void bifuractionKernel(
 		//kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, amountOfTPoints*0.1);
 
 
-		outSize = peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data, in_dataSizes);
+		outSize = peakFinderForDBSCAN(idx, localParam[1], 0, amountOfTPointsSelf, in_data, in_data, in_dataSizes);
 
 		//float maxx = -9999;//0.002
 		//float maxy = -9999; //0.1
@@ -784,19 +803,19 @@ __global__ void bifuractionKernel(
 		//}
 
 
-		float maxx = 11;//0.002
-		float maxy = 8; //0.1
-		float minx = -1.5;//0.002
-		float miny = 0; //0.1
-		float deltx = 1 / (maxx - minx);
-		float delty = 1 / (maxy - miny);
-		for (int i = 0; i < outSize; i++) {
-			in_data[index + i * 2] = (in_data[index + i * 2] - minx) * deltx;
-			in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
-		}
+		//float maxx = 11;//0.002
+		//float maxy = 8; //0.1
+		//float minx = -1.5;//0.002
+		//float miny = 0; //0.1
+		//float deltx = 1 / (maxx - minx);
+		//float delty = 1 / (maxy - miny);
+		//for (int i = 0; i < outSize; i++) {
+		//	in_data[index + i * 2] = (in_data[index + i * 2] - minx) * deltx;
+		//	in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
+		//}
 
-		dbscan(in_data, amountOfTPoints, outSize, idx, 0.01f, in_dataSizes, 0.2 * amountOfTPoints);
-//		in_dataSizes[idx] = (int)(miny*1000);
+		dbscan(in_data, amountOfTPointsSelf, outSize, idx, 0.01f, in_dataSizes, 0.2 * amountOfTPointsSelf);
+		//		in_dataSizes[idx] = (int)(miny*1000);
 		break;
 	}
 }
@@ -804,7 +823,8 @@ __global__ void bifuractionKernel(
 
 __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 {
-
+	// NOTE: a[0] - is Symmetry
+	//		 a[1] - is H
 
 	switch (mode)
 	{
@@ -817,6 +837,19 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//x[0] = x[0] + localH2 * (-x[1] - x[2]);
 		break;
 	case CHEN: // 40 3 28
+
+		double sym = (a[0] / a[1]) + 0.5;
+
+		double h1 = a[1] * sym;
+		double h2 = a[1] * (1 - sym);
+
+		X[0] = (X[0] + h1 * a[2] * X[1]) / (1 + h1 * a[2]);
+		X[1] = (X[1] + h1 * X[0] * (a[4] - a[2] - X[2])) / (1 - h1 * a[4]);
+		X[2] = (X[2] + h1 * X[0] * X[1]) / (1 + h1 * a[3]);
+
+		X[2] = X[2] + h2 * (X[0] * X[1] - a[3] * X[2]);
+		X[1] = X[1] + h2 * (X[0] * (a[4] - a[2] - X[2]) + a[4] * X[1]);
+		X[0] = X[0] + h2 * (a[2] * (X[1] - X[0]));
 		//x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
 		//x[1] = (x[1] + localH1 * x[0] * (values[3] - values[1] - x[2])) / (1 - localH1 * values[3]);
 		//x[2] = (x[2] + localH1 * x[0] * x[1]) / (1 + localH1 * values[2]);
@@ -964,17 +997,17 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//X[2] = X[2] + h * (a[2] + X1[2] * (X1[0] - a[3]));
 
 
-		h = 0.5 * h;
-		X[0] = X[0] + h * (-X[1] - X[2]);
-		X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
-		X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
-		X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
-		X[1] = X[1] + h * (X[0] + a[1] * X[1]);
-		X[0] = X[0] + h * (-X[1] - X[2]);
+		//h = 0.5 * h;
+		//X[0] = X[0] + h * (-X[1] - X[2]);
+		//X[1] = (X[1] + h * (X[0])) / (1 - a[1] * h);
+		//X[2] = (X[2] + h * a[2]) / (1 - h * (X[0] - a[3]));
+		//X[2] = X[2] + h * (a[2] + X[2] * (X[0] - a[3]));
+		//X[1] = X[1] + h * (X[0] + a[1] * X[1]);
+		//X[0] = X[0] + h * (-X[1] - X[2]);
 
 
 		/*
-		double w[3][4];
+		//double w[3][4];
 		double h2 = h * 0.5;
 
 		w[0][0] = 1 + a[1] * h2;
@@ -1157,71 +1190,71 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//for (i = 0; i < N; i++) {
 		//	X[i] = X1[i];
 		//}
-		//break;
+		break;
 	case CompCD:
 
-		double h_local = h * 0.5;
-		double h1 = h_local * 1.35120719196;
-		double h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
-		//h_local = h * (-1.702414383919);
-		h1 = h_local * (-1.702414383919);
-		h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
-		h1 = h_local * 1.35120719196;
-		h2 = h1;
-		X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
-		X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
-		X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[3] = X[3] + h1 * (-a[1] * X[1]);
-		X[3] = X[3] + h2 * (-a[1] * X[1]);
-		X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
-		X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
-		X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
-		break;
-	case RK4:
-		double X1[4];
-		double k[4][4];
-		int N = 4;
-		int i, j;
-		for (i = 0; i < N; i++) {
-			X1[i] = X[i];
-		}
-		for (j = 0; j < 4; j++) {
-			k[0][j] = (X1[1] + X1[0] * X1[2]);
-			k[1][j] = (-a[2] * X1[0] + X1[1] * X1[2] + X1[3]);
-			k[2][j] = (1 - X1[0] * X1[0] - X1[1] * X1[1]);
-			k[3][j] = (-a[1] * X1[1]);
-			if (j == 3) {
-				for (i = 0; i < N; i++) {
-					X[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
-				}
-			}
-			else if (j == 2) {
-				for (i = 0; i < N; i++) {
-					X1[i] = X[i] + h * k[i][j];
-				}
-			}
-			else {
-				for (i = 0; i < N; i++) {
-					X1[i] = X[i] + 0.5 * h * k[i][j];
-				}
-			}
-		}
+		//	double h_local = h * 0.5;
+		//	double h1 = h_local * 1.35120719196;
+		//	double h2 = h1;
+		//	X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//	X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//	X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//	X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//	X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//	X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		//	//h_local = h * (-1.702414383919);
+		//	h1 = h_local * (-1.702414383919);
+		//	h2 = h1;
+		//	X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//	X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//	X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//	X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//	X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//	X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		//	h1 = h_local * 1.35120719196;
+		//	h2 = h1;
+		//	X[0] = X[0] + h1 * (X[1] + X[0] * X[2]);
+		//	X[1] = X[1] + h1 * (-a[2] * X[0] + X[1] * X[2] + X[3]);
+		//	X[2] = X[2] + h1 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[3] = X[3] + h1 * (-a[1] * X[1]);
+		//	X[3] = X[3] + h2 * (-a[1] * X[1]);
+		//	X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
+		//	X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
+		//	X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+		//	break;
+		//case RK4:
+		//	double X1[4];
+		//	double k[4][4];
+		//	int N = 4;
+		//	int i, j;
+		//	for (i = 0; i < N; i++) {
+		//		X1[i] = X[i];
+		//	}
+		//	for (j = 0; j < 4; j++) {
+		//		k[0][j] = (X1[1] + X1[0] * X1[2]);
+		//		k[1][j] = (-a[2] * X1[0] + X1[1] * X1[2] + X1[3]);
+		//		k[2][j] = (1 - X1[0] * X1[0] - X1[1] * X1[1]);
+		//		k[3][j] = (-a[1] * X1[1]);
+		//		if (j == 3) {
+		//			for (i = 0; i < N; i++) {
+		//				X[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
+		//			}
+		//		}
+		//		else if (j == 2) {
+		//			for (i = 0; i < N; i++) {
+		//				X1[i] = X[i] + h * k[i][j];
+		//			}
+		//		}
+		//		else {
+		//			for (i = 0; i < N; i++) {
+		//				X1[i] = X[i] + 0.5 * h * k[i][j];
+		//			}
+		//		}
+		//	}
 		break;
 
 	}
@@ -1415,7 +1448,7 @@ __device__ void kdeMethod(int idx,
 
 
 template <class T1, class T2>
-__host__ void linspace(T1 a, T1 b, int amount, T2 * out, int startIndex)
+__host__ void linspace(T1 a, T1 b, int amount, T2* out, int startIndex, bool isExp)
 {
 	if (amount <= 0)
 		throw std::invalid_argument("linspace error. amount <= 0");
@@ -1427,7 +1460,7 @@ __host__ void linspace(T1 a, T1 b, int amount, T2 * out, int startIndex)
 
 	double step = (b - a) / (amount - 1);
 	for (size_t i = 0; i < amount; ++i)
-		out[startIndex + i] = a + i * step;
+		out[startIndex + i] = isExp ? powf(10, -(a + i * step)) : a + i * step;
 
 	return;
 }
@@ -1546,14 +1579,14 @@ __device__ int dbscan(float* input, int amountOfTPoints, int amountOfPeaks, int 
 __host__ void getParamsAndSymmetry2D(double* param1, double* param2,
 	double startInterval1, double finishInteraval1,
 	double startInterval2, double finishInteraval2,
-	int nPts)
+	int nPts, bool isExpForParam1)
 {
 	double* tempParams = new double[nPts];
 	linspace(startInterval2, finishInteraval2, nPts, tempParams);
 
 	for (int i = 0; i < nPts; ++i)
 	{
-		linspace(startInterval1, finishInteraval1, nPts, param1, i * nPts);
+		linspace(startInterval1, finishInteraval1, nPts, param1, i * nPts, isExpForParam1);
 		for (int j = 0; j < nPts; ++j)
 			param2[nPts * i + j] = tempParams[i];
 	}
@@ -1566,7 +1599,7 @@ __host__ void getParamsAndSymmetry3D(double* param1, double* param2, double* par
 	double startInterval1, double finishInteraval1,
 	double startInterval2, double finishInteraval2,
 	double startInterval3, double finishInteraval3,
-	int nPts)
+	int nPts, bool isExpForParam1)
 {
 	{
 		double* tempParams2 = new double[nPts];
@@ -1578,7 +1611,7 @@ __host__ void getParamsAndSymmetry3D(double* param1, double* param2, double* par
 		for (int k = 0; k < nPts; ++k)
 			for (int i = 0; i < nPts; ++i)
 			{
-				linspace(startInterval1, finishInteraval1, nPts, param1, i * nPts + k * nPts * nPts);
+				linspace(startInterval1, finishInteraval1, nPts, param1, i * nPts + k * nPts * nPts, isExpForParam1);
 				for (int j = 0; j < nPts; ++j)
 				{
 					param2[nPts * nPts * k + nPts * i + j] = tempParams2[i];
@@ -1593,7 +1626,7 @@ __host__ void getParamsAndSymmetry3D(double* param1, double* param2, double* par
 
 
 template <class T>
-__host__ void slice(T * in, int a, int b, T * out)
+__host__ void slice(T* in, int a, int b, T* out)
 {
 	if (b - a < 0)
 		throw std::invalid_argument("slice error. b < a");
