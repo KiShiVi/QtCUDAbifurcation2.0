@@ -408,7 +408,8 @@ __host__ void bifurcation2D(
 __host__ void bifurcation3D(
 	double					in_tMax,
 	int					in_nPts,
-	double				in_h,
+	double				in_h1,
+	double				in_h2,
 	double* in_initialConditions,
 	double				in_paramValues1,
 	double				in_paramValues2,
@@ -439,7 +440,6 @@ __host__ void bifurcation3D(
 	outFileStream.open(in_outPath);
 	outFileStream << in_paramValues1 << ", " << in_paramValues2 << "\n" << in_paramValues3 << ", " << in_paramValues4 << "\n" << in_paramValues5 << ", " << in_paramValues6 << "\n";
 
-	size_t amountOfTPoints = in_tMax / in_h / in_prescaller;
 
 	double* paramValues1 = nullptr;
 	double* paramValues2 = nullptr;
@@ -450,10 +450,12 @@ __host__ void bifurcation3D(
 	paramValues3 = (double*)malloc(sizeof(double) * in_nPts * in_nPts * in_nPts);
 
 	getParamsAndSymmetry3D(paramValues1, paramValues2, paramValues3,
-		in_paramValues1, in_paramValues2,
+		in_h1, in_h2,
 		in_paramValues3, in_paramValues4,
 		in_paramValues5, in_paramValues6,
-		in_nPts);
+		in_nPts, true);
+
+	size_t amountOfTPoints = in_tMax / paramValues1[0] / in_prescaller;
 
 	size_t freeMemory;
 	size_t totalMemory;
@@ -488,11 +490,11 @@ __host__ void bifurcation3D(
 	double* d_initialConditions;
 
 
-	cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(double));
-	cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(double));
+	checkCudaError(cudaMalloc((void**)&d_params, in_amountOfParams * sizeof(double)), "493", true);
+	checkCudaError(cudaMalloc((void**)&d_initialConditions, in_amountOfParams * sizeof(double)), "494", true);
 
-	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
-	cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	checkCudaError(cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "496", true);
+	checkCudaError(cudaMemcpy(d_initialConditions, in_initialConditions, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "497", true);
 
 	size_t amountOfIteration = (size_t)std::ceilf((double)(in_nPts * in_nPts * in_nPts) / (double)nPtsLimiter);
 
@@ -527,15 +529,15 @@ __host__ void bifurcation3D(
 
 		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
 
-		cudaMalloc((void**)&d_kdeResult, nPtsLimiter * sizeof(int));
-		cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(double));
-		cudaMalloc((void**)&d_paramValues1, nPtsLimiter * sizeof(double));
-		cudaMalloc((void**)&d_paramValues2, nPtsLimiter * sizeof(double));
-		cudaMalloc((void**)&d_paramValues3, nPtsLimiter * sizeof(double));
+		checkCudaError(cudaMalloc((void**)&d_kdeResult, nPtsLimiter * sizeof(int)), "532", true);
+		checkCudaError(cudaMalloc((void**)&d_data, nPtsLimiter * amountOfTPoints * sizeof(double)), "533", true);
+		checkCudaError(cudaMalloc((void**)&d_paramValues1, nPtsLimiter * sizeof(double)), "534", true);
+		checkCudaError(cudaMalloc((void**)&d_paramValues2, nPtsLimiter * sizeof(double)), "535", true);
+		checkCudaError(cudaMalloc((void**)&d_paramValues3, nPtsLimiter * sizeof(double)), "536", true);
 
-		cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
-		cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
-		cudaMemcpy(d_paramValues3, h_paramValues3, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+		checkCudaError(cudaMemcpy(d_paramValues1, h_paramValues1, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "538", true);
+		checkCudaError(cudaMemcpy(d_paramValues2, h_paramValues2, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "539", true);
+		checkCudaError(cudaMemcpy(d_paramValues3, h_paramValues3, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice), "540", true);
 
 		int blockSize;
 		int minGridSize;
@@ -548,7 +550,7 @@ __host__ void bifurcation3D(
 		bifuractionKernel << <gridSize, blockSize >> > (
 			nPtsLimiter,
 			in_tMax,
-			in_h,
+			paramValues1[0],
 			d_initialConditions,
 			in_nValue,
 			in_prePeakFinderSliceK,
@@ -573,15 +575,15 @@ __host__ void bifurcation3D(
 
 
 		//cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyDeviceToHost);
-		cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+		checkCudaError(cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost), "578", true);
 
 		cudaDeviceSynchronize();
 
-		cudaFree(d_data);
-		cudaFree(d_kdeResult);
-		cudaFree(d_paramValues1);
-		cudaFree(d_paramValues2);
-		cudaFree(d_paramValues3);
+		checkCudaError(cudaFree(d_data), "582", true);
+		checkCudaError(cudaFree(d_kdeResult), "583", true);
+		checkCudaError(cudaFree(d_paramValues1), "584", true);
+		checkCudaError(cudaFree(d_paramValues2), "585", true);
+		checkCudaError(cudaFree(d_paramValues3), "586", true);
 
 		for (size_t i = 0; i < nPtsLimiter; ++i)
 			if (outFileStream.is_open())
