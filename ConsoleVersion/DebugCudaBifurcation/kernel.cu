@@ -24,7 +24,7 @@ int main()
 
 	bifurcation2D(
 		100,					//int					in_tMax,
-		100,					//int					in_nPts,
+		500,					//int					in_nPts,
 		3,					//double				in_h1,
 		1.3979,					//double				in_h2,
 		initialConditions,		//double* in_initialConditions,

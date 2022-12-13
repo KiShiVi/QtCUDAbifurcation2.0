@@ -316,6 +316,8 @@ __host__ void bifurcation2D(
 		cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, bifuractionKernel, 0, nPtsLimiter);
 		gridSize = (nPtsLimiter + blockSize - 1) / blockSize;
 
+		
+
 		//Call CUDA func
 		bifuractionKernel << <gridSize, blockSize >> > (
 			nPtsLimiter,
@@ -345,7 +347,7 @@ __host__ void bifurcation2D(
 
 
 		//cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyDeviceToHost);
-		checkCudaError(cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost), "348", true);
+		checkCudaError(cudaMemcpy(h_kdeResult, d_kdeResult, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost), "350", true);
 
 		cudaDeviceSynchronize();
 
@@ -675,10 +677,10 @@ __global__ void bifuractionKernel(
 	for (int i = 0; i < in_amountOfParams; ++i)
 		localParam[i] = in_params[i];
 
-	localParam[0] = in_paramValues1[idx];
+	localParam[1] = in_paramValues1[idx];
 
 	if (in_paramValues2 != nullptr)
-		localParam[1] = in_paramValues2[idx];
+		localParam[0] = in_paramValues2[idx];
 
 	if (in_paramValues3 != nullptr)
 		localParam[in_mode3] = in_paramValues3[idx];
@@ -742,7 +744,7 @@ __global__ void bifuractionKernel(
 	{
 	case PEAKFINDER_MODE:
 		//		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
-		peakFinderForDBSCAN(idx, (float)localParam[1], (float)0, amountOfTPointsSelf, in_data, in_data, in_dataSizes);
+		peakFinderForDBSCAN(idx, (float)localParam[1], (float)0, amountOfTPointsSelf, amountOfTPoints, in_data, in_data, in_dataSizes);
 		break;
 	case KDE_MODE:
 		//outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
@@ -750,7 +752,7 @@ __global__ void bifuractionKernel(
 		//kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, amountOfTPoints*0.1);
 
 
-		outSize = peakFinderForDBSCAN(idx, localParam[1], 0, amountOfTPointsSelf, in_data, in_data, in_dataSizes);
+		outSize = peakFinderForDBSCAN(idx, localParam[1], 0, amountOfTPointsSelf, amountOfTPoints, in_data, in_data, in_dataSizes);
 
 		//float maxx = -9999;//0.002
 		//float maxy = -9999; //0.1
@@ -814,7 +816,7 @@ __global__ void bifuractionKernel(
 		//	in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
 		//}
 
-		dbscan(in_data, amountOfTPointsSelf, outSize, idx, 0.01f, in_dataSizes, 0.2 * amountOfTPointsSelf);
+		dbscan(in_data, amountOfTPoints, outSize, idx, 0.01f, in_dataSizes, 0.2 * amountOfTPointsSelf);
 		//		in_dataSizes[idx] = (int)(miny*1000);
 		break;
 	}
@@ -842,6 +844,8 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 
 		double h1 = a[1] * sym;
 		double h2 = a[1] * (1 - sym);
+
+		//printf("%f\n", sym);
 
 		X[0] = (X[0] + h1 * a[2] * X[1]) / (1 + h1 * a[2]);
 		X[1] = (X[1] + h1 * X[0] * (a[4] - a[2] - X[2])) / (1 - h1 * a[4]);
@@ -1296,9 +1300,9 @@ __device__ int peakFinder(int idx, float prePeakFinder, size_t amountOfTPoints, 
 	return _outSize;
 }
 
-__device__ int peakFinderForDBSCAN(int idx, float in_h, float prePeakFinder, size_t amountOfTPoints, float* in_data, float* out_data, int* out_dataSizes)
+__device__ int peakFinderForDBSCAN(int idx, float in_h, float prePeakFinder, size_t amountOfTPoints, size_t amountOfTPointsGeneral, float* in_data, float* out_data, int* out_dataSizes)
 {
-	size_t index = idx * amountOfTPoints;
+	size_t index = idx * amountOfTPointsGeneral;
 	int _outSize = 0;
 
 	for (int i = 3 + prePeakFinder * amountOfTPoints; i < amountOfTPoints - 1; ++i)

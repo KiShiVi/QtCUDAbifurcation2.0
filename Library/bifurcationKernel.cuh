@@ -149,6 +149,7 @@ __device__ int peakFinderForDBSCAN(int idx,
 	float in_h,
 	float prePeakFinder,
 	size_t amountOfTPoints,
+	size_t amountOfTPointsGeneral,
 	float* in_data,
 	float* out_data,
 	int* out_dataSizes);
