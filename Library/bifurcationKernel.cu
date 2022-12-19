@@ -2,7 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <stdio.h>
 
+//#include <math_functions.h>
 #include "bifurcationKernel.cuh"
 
 __host__ void bifurcation1D(
@@ -171,7 +173,175 @@ __host__ void bifurcation1D(
 	return;
 }
 
+__host__ void LLE1D(
+	double				in_tMax,
+	double				in_NT,
+	int					in_nPts,
+	double				in_h,
+	double* in_initialConditions,
+	double				in_paramValues1,
+	double				in_paramValues2,
+	double				in_prePeakFinderSliceK,
+	int					in_thresholdValueOfMaxSignalValue,
+	int					in_amountOfParams,
+	int					in_discreteModelMode,
+	int					in_prescaller,
+	double				in_eps,
+	double* in_params,
+	int					in_mode,
+	double				in_memoryLimit,
+	std::string			in_outPath,
+	bool				in_debug,
+	std::atomic<int>& progress)
+{
+	size_t amountOfNT_points = in_NT / in_h;
+	size_t amountOfTPoints = in_tMax / amountOfNT_points;
 
+	double* globalParamValues = nullptr;
+	globalParamValues = (double*)malloc(sizeof(double) * in_nPts);
+	linspace(in_paramValues1, in_paramValues2, in_nPts, globalParamValues);
+
+	size_t freeMemory;
+	size_t totalMemory;
+
+	cudaMemGetInfo(&freeMemory, &totalMemory);
+
+	freeMemory *= in_memoryLimit * 0.95;
+
+	double maxMemoryLimit = sizeof(double) * (amountOfTPoints + 2 + in_amountOfParams) + sizeof(int);
+
+	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
+	//ne takaya yzh huita ebanaya
+	if (nPtsLimiter <= 0)
+	{
+		if (in_debug)
+			std::cout << "\nVery low memory size. Increase the MEMORY_LIMIT!" << "\n";
+		exit(1);
+	}
+
+	float* h_data;
+	int* h_dataSizes;
+	double* h_dataTimes;
+
+	float* d_data;
+	int* d_dataSizes;
+	double* d_dataTimes;
+	double* d_params;
+	double* d_initialConditions;
+
+	cudaMalloc((void**)& d_params, in_amountOfParams * sizeof(double));
+	cudaMalloc((void**)& d_initialConditions, 3 * sizeof(double));
+	cudaMemcpy(d_params, in_params, in_amountOfParams * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	cudaMemcpy(d_initialConditions, in_initialConditions, 3 * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+	size_t amountOfIteration = (size_t)std::ceilf((double)in_nPts / (double)nPtsLimiter);;
+
+	std::ofstream outFileStream;
+	outFileStream.open(in_outPath);
+
+	for (size_t i = 0; i < amountOfIteration; ++i)
+	{
+		if (i == amountOfIteration - 1)
+		{
+			h_dataTimes = (double*)malloc((in_nPts - nPtsLimiter * i) * sizeof(double));
+
+			slice(globalParamValues, nPtsLimiter * i, in_nPts, h_dataTimes);
+			nPtsLimiter = in_nPts - (nPtsLimiter * i);
+		}
+		else
+		{
+			h_dataTimes = (double*)malloc(((nPtsLimiter * i + nPtsLimiter) - nPtsLimiter * i) * sizeof(double));
+			slice(globalParamValues, nPtsLimiter * i, nPtsLimiter * i + nPtsLimiter, h_dataTimes);
+		}
+
+
+		h_data = (float*)malloc(nPtsLimiter * amountOfTPoints * sizeof(float));
+		h_dataSizes = (int*)malloc(nPtsLimiter * sizeof(int));
+
+		cudaMalloc((void**)& d_data, nPtsLimiter * amountOfTPoints * sizeof(float));
+		cudaMalloc((void**)& d_dataSizes, nPtsLimiter * sizeof(int));
+		cudaMalloc((void**)& d_dataTimes, nPtsLimiter * sizeof(double));
+
+		cudaMemcpy(d_dataTimes, h_dataTimes, nPtsLimiter * sizeof(double), cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+		int blockSize;
+		int minGridSize;
+		int gridSize;
+
+		cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, bifuractionKernel, 0, nPtsLimiter);
+		gridSize = (nPtsLimiter + blockSize - 1) / blockSize;
+
+
+
+		//Call CUDA func
+
+		LLEKernel << <gridSize, blockSize >> > (
+			nPtsLimiter,
+			in_tMax,
+			in_NT,
+			in_h,
+			d_initialConditions,
+			in_prePeakFinderSliceK,
+			d_data,
+			d_dataSizes,
+			in_thresholdValueOfMaxSignalValue,
+			in_amountOfParams,
+			in_discreteModelMode,
+			in_prescaller,
+			in_eps,
+			d_params,
+			d_dataTimes,
+			in_mode);
+
+
+		cudaMemcpy(h_data, d_data, amountOfTPoints * nPtsLimiter * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+		cudaMemcpy(h_dataSizes, d_dataSizes, nPtsLimiter * sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost);
+
+		cudaDeviceSynchronize();
+
+		cudaFree(d_data);
+		cudaFree(d_dataSizes);
+		cudaFree(d_dataTimes);
+
+		for (size_t i = 0; i < nPtsLimiter; ++i)
+			for (size_t j = 0; j < h_dataSizes[i]; ++j)
+				if (outFileStream.is_open())
+				{
+					outFileStream << h_dataTimes[i] << ", " << h_data[i * amountOfTPoints + j] << '\n';
+				}
+				else
+				{
+					std::cout << "\nOutput file open error" << std::endl;
+					exit(1);
+				}
+
+		std::free(h_data);
+		std::free(h_dataSizes);
+		std::free(h_dataTimes);
+
+		if (in_debug)
+			std::cout << "       " << std::setprecision(3) << (100.0f / (double)amountOfIteration) * (i + 1) << "%\n";
+
+		progress.store((100.0f / (double)amountOfIteration) * (i + 1), std::memory_order_seq_cst);
+	}
+
+	if (in_debug)
+	{
+		if (amountOfIteration != 1)
+			std::cout << "       " << "100%\n";
+		std::cout << '\n';
+	}
+
+	cudaFree(d_params);
+	cudaFree(d_initialConditions);
+	std::free(globalParamValues);
+
+	progress.store(100, std::memory_order_seq_cst);
+
+	outFileStream.close();
+
+	return;
+}
 
 __host__ void bifurcation2D(
 	double					in_tMax,
@@ -648,8 +818,9 @@ __global__ void bifuractionKernel(
 	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
 	size_t index = amountOfTPoints * idx;
 	// Change to dynamic / KISH
-	double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	//double x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
 	//double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
+	double x[6]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3], in_initialConditions[4], in_initialConditions[5] };
 
 
 	double* localParam = new double[in_amountOfParams];
@@ -722,8 +893,8 @@ __global__ void bifuractionKernel(
 	switch (resultMode)
 	{
 	case PEAKFINDER_MODE:
-		//		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
-		peakFinderForDBSCAN(idx, (float)in_h, (float)0, amountOfTPoints, in_data, in_data, in_dataSizes);
+		peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
+		//peakFinderForDBSCAN(idx, (float)in_h, (float)0, amountOfTPoints, in_data, in_data, in_dataSizes);
 		break;
 	case KDE_MODE:
 		//outSize = peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
@@ -784,49 +955,230 @@ __global__ void bifuractionKernel(
 		//}
 
 
-		float maxx = 11;//0.002
-		float maxy = 8; //0.1
-		float minx = -1.5;//0.002
-		float miny = 0; //0.1
-		float deltx = 1 / (maxx - minx);
-		float delty = 1 / (maxy - miny);
-		for (int i = 0; i < outSize; i++) {
-			in_data[index + i * 2] = (in_data[index + i * 2] - minx) * deltx;
-			in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
-		}
+		//float maxx = 11;//0.002
+		//float maxy = 8; //0.1
+		//float minx = -1.5;//0.002
+		//float miny = 0; //0.1
+		//float deltx = 1 / (maxx - minx);
+		//float delty = 1 / (maxy - miny);
+		//for (int i = 0; i < outSize; i++) {
+		//	in_data[index + i * 2] = (in_data[index + i * 2] - minx) * deltx;
+		//	in_data[index + i * 2 + 1] = (in_data[index + i * 2 + 1] - miny) * delty;
+		//}
 
-		dbscan(in_data, amountOfTPoints, outSize, idx, 0.01f, in_dataSizes, 0.25 * amountOfTPoints);
+		dbscan(in_data, amountOfTPoints, outSize, idx, 0.02f, in_dataSizes, 0.25 * amountOfTPoints);
 //		in_dataSizes[idx] = (int)(miny*1000);
 		break;
 	}
 }
 
 
+__global__ void LLEKernel(
+	int in_nPts,
+	double in_TMax,
+	double in_NT,
+	double in_h,
+	double* in_initialConditions,
+	double in_prePeakFinderSliceK,
+	float* in_data,
+	int* in_dataSizes,
+	int thresholdValueOfMaxSignalValue,
+	int	in_amountOfParams,
+	int in_discreteModelMode,
+	int	in_prescaller,
+	double eps,
+	double* in_params,
+	double* in_paramValues1,
+	int	in_mode1,
+	double* in_paramValues2,
+	int in_mode2,
+	double* in_paramValues3,
+	int in_mode3
+)
+{
+	int idx = threadIdx.x + blockIdx.x * blockDim.x;
+	size_t amountOfNT_points = in_NT / in_h;
+	size_t amountOfTPoints = in_TMax / amountOfNT_points;
+	//size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
+	size_t index = amountOfTPoints * idx;
+	//std::printf("%i\n", idx);
+
+	if (idx >= in_nPts)
+		return;
+
+
+
+	//int AmountDim = 3;
+	////// Change to dynamic / KISH
+	//double* x = new double[3];
+	//double* y = new double[3];
+	//double* z = new double[3];
+
+	//for (size_t i = 0; i < AmountDim; i++)
+	//	x[i] = in_initialConditions[i];
+
+	//for (int i = 0; i < AmountDim; i++)
+	//	x[i+6] = 0.2171828;
+
+	////x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	////double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
+	////double x[6]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3], in_initialConditions[4], in_initialConditions[5] };
+	//
+	////double y[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	//// z[3]{ 0.2171828,0.2171828 ,0.2171828 };
+	//
+	//
+
+	////double* z = new double[3];
+
+	//double* localParam = new double[in_amountOfParams];
+	//for (size_t i = 0; i < in_amountOfParams; ++i)
+	//	localParam[i] = in_params[i];
+
+	//localParam[in_mode1] = in_paramValues1[idx];
+
+	//if (in_paramValues2 != nullptr)
+	//	localParam[in_mode2] = in_paramValues2[idx];
+
+	//if (in_paramValues3 != nullptr)
+	//	localParam[in_mode3] = in_paramValues3[idx];
+
+
+	////z[0] = 0.2171828;
+	////z[1] = 0.2171828;
+	////z[2] = 0.2171828;
+	////std::printf("%f %f %f\n", x[0], x[1], x[2]);
+	////int AmountDim = 3;
+	////for (int i = 0; i < 3; i++) {
+	////	z[i] = 0.2171828;
+	////}
+
+	////Skip PREPEAKFINDER points
+	////for (size_t i = 0; i < amountOfSkipPoints; ++i) {
+
+	////	calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+
+	////	if (abs(x[0]) > thresholdValueOfMaxSignalValue)
+	////	{
+	////		in_dataSizes[idx] = 0;
+	////		delete[] localParam;
+	////		return;
+	////	}
+	////}
+
+	//////Calculating
+
+	////for (int i = 0; i < AmountDim; i++) {
+	////	y[i] = z[i] * eps + x[i];
+	////}
+
+
+	////for (int i = 0; i < amountOfTPoints; ++i)
+	////{
+	////	////in_data[index + i] = (float)(x[in_nValue]);
+	////	//for (size_t j = 0; j < in_prescaller - 1; ++j)
+	////	//	calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+
+	////	for (int j = 0; j < 40; ++j) {
+	////		calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+	////		calculateDiscreteModel(in_discreteModelMode, y, localParam, in_h);
+
+	////		if (abs(x[0]) > thresholdValueOfMaxSignalValue)
+	////		{
+	////			in_dataSizes[idx] = 0;
+	////			delete[] localParam;
+	////			return;
+	////		}
+
+	////		if (abs(y[0]) > thresholdValueOfMaxSignalValue)
+	////		{
+	////			in_dataSizes[idx] = 0;
+	////			delete[] localParam;
+	////			return;
+	////		}
+
+	////	}
+	////	//calculationForLLE(double* X, double* Y, double eps, int N)
+	////	in_data[index + i] = calculationForLLE(x,y,eps, AmountDim);
+	////	float in_data_1 = 1 / in_data[index + i];
+
+	////	y[0] = (double)(x[0] - (x[0] - y[0]) * in_data_1);
+	////	y[1] = (double)(x[1] - (x[1] - y[1]) * in_data_1);
+	////	y[2] = (double)(x[2] - (x[2] - y[2]) * in_data_1);
+
+	////	//for (int i = 0; i < AmountDim; i++) {
+	////	//	y[i] = (double)((x[i] - y[i])*in_data_1);
+	////	//}
+	////}
+
+	////float res1 = 0;
+
+	////for (int i = 0; i < amountOfTPoints; ++i)
+	////	res1 = res1 + log(in_data[index + i]);
+
+
+	//delete[] localParam;
+
+	//delete[] y;
+	//delete[] x;
+	//delete[] z;
+
+	in_dataSizes[idx] = 1;
+	in_data[index] = (float)(666*idx);
+
+
+	// Here is the choice of method: KDE or peakFinder
+	// TODO add switch on method of result
+	// WARNING!!! THIS METHOD MUST TO FILL dataSizes[] (IF NEEDED)!!!
+
+	//int outSize = 0;
+
+	//switch (resultMode)
+	//{
+	//case PEAKFINDER_MODE:
+	//	peakFinder(idx, 0, amountOfTPoints, in_data, in_dataSizes, in_data);
+	//	//peakFinderForDBSCAN(idx, (float)in_h, (float)0, amountOfTPoints, in_data, in_data, in_dataSizes);
+	//	break;
+	//case KDE_MODE:
+	//	outSize = peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data, in_dataSizes);
+	//	dbscan(in_data, amountOfTPoints, outSize, idx, 0.02f, in_dataSizes, 0.25 * amountOfTPoints);
+	//	break;
+	//}
+}
+
+__device__ float calculationForLLE(double* X, double* Y, double eps, int N)
+{
+	double res = 0;
+	for (int i = 0; i < N; i++)
+		res = res + (X[i] - Y[i]) * (X[i] - Y[i]);
+	res = sqrtf(res)/eps;
+	return (float)res;
+}
+
 __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 {
-
-
+	double h1, h2;
 	switch (mode)
 	{
 	case ROSSLER: // 0.2 0.2 5.7
-		//x[0] = x[0] + localH1 * (-x[1] - x[2]);
-		//x[1] = (x[1] + localH1 * (x[0])) / (1 - values[1] * localH1);
-		//x[2] = (x[2] + localH1 * values[2]) / (1 - localH1 * (x[0] - values[3]));
-		//x[2] = x[2] + localH2 * (values[2] + x[2] * (x[0] - values[3]));
-		//x[1] = x[1] + localH2 * (x[0] + values[1] * x[1]);
-		//x[0] = x[0] + localH2 * (-x[1] - x[2]);
+		h1 = h * a[0];
+		h2 = h * (1 - a[0]);
+		X[0] = X[0] + h1 * (-X[1] - X[2]);
+		X[1] = (X[1] + h1 * (X[0])) / (1 - a[1] * h1);
+		X[2] = (X[2] + h1 * a[2]) / (1 - h1 * (X[0] - a[3]));
+		X[2] = X[2] + h2 * (a[2] + X[2] * (X[0] - a[3]));
+		X[1] = X[1] + h2 * (X[0] + a[1] * X[1]);
+		X[0] = X[0] + h2 * (-X[1] - X[2]);
 		break;
 	case CHEN: // 40 3 28
-		double h1 = h * a[0];
-		double h2 = h * (1 - a[0]);
-
-		X[0] = (X[0] + h1 * a[1] * X[1]) / (1 + h1 * a[1]);
-		X[1] = (X[1] + h1 * X[0] * (a[3] - a[1] - X[2])) / (1 - h1 * a[3]);
-		X[2] = (X[2] + h1 * X[0] * X[1]) / (1 + h1 * a[2]);
-
-		X[2] = X[2] + h2 * (X[0] * X[1] - a[2] * X[2]);
-		X[1] = X[1] + h2 * (X[0] * (a[3] - a[1] - X[2]) + a[3] * X[1]);
-		X[0] = X[0] + h2 * (a[1] * (X[1] - X[0]));
+		//double h1 = h * a[0];
+		//double h2 = h * (1 - a[0]);
+		//X[0] = (X[0] + h1 * a[1] * X[1]) / (1 + h1 * a[1]);
+		//X[1] = (X[1] + h1 * X[0] * (a[3] - a[1] - X[2])) / (1 - h1 * a[3]);
+		//X[2] = (X[2] + h1 * X[0] * X[1]) / (1 + h1 * a[2]);
+		//X[2] = X[2] + h2 * (X[0] * X[1] - a[2] * X[2]);
+		//X[1] = X[1] + h2 * (X[0] * (a[3] - a[1] - X[2]) + a[3] * X[1]);
+		//X[0] = X[0] + h2 * (a[1] * (X[1] - X[0]));
 		break;
 	case LORENZ: // 10 28 2.6667
 		//x[0] = (x[0] + localH1 * values[1] * x[1]) / (1 + localH1 * values[1]);
@@ -848,7 +1200,6 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//double h_local = h * 1.35120719196;
 		//double h1 = h_local * a[0];
 		//double h2 = h_local * (1 - a[0]);4
-
 		//double h_local = h * 0.5;
 		//double h1 = h_local * 1.35120719196;
 		//double h2 = h1;
@@ -1141,7 +1492,6 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//	k[0][j] = (X1[2] - X1[0] * (a[1] + a[2])) * a[3] * a[4];
 		//	k[1][j] = (a[5] * X1[0] * X1[2] / 10 * a[6] * a[7] - X1[1] * (a[8] + a[2])) * a[3] * a[4];
 		//	k[2][j] = (-a[5] * X1[0] * a[9] + a[5] * X1[1] * a[10]) * a[11];
-
 		//	if (j == 3) {
 		//		for (i = 0; i < N; i++) {
 		//			X1[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
@@ -1196,6 +1546,55 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 		//X[2] = X[2] + h2 * (1 - X[0] * X[0] - X[1] * X[1]);
 		//X[1] = (X[1] + h2 * (-a[2] * X[0] + X[3])) / (1 - h2 * X[2]);
 		//X[0] = (X[0] + h2 * (X[1])) / (1 - h2 * X[2]);
+
+
+
+		//double h_local = h * 0.5;
+		//double h1 = h_local * 1.35120719196;
+		//double h2 = h1;
+
+		//X[0] = X[0] + h1 * (X[2]);
+		//X[1] = X[1] + h1 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[2] = X[2] + h1 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//X[3] = X[3] + h1 * (-a[6] * X[2] * X[3]);
+		//X[3] = (X[3]) / (1 + h2 * a[6] * X[2]);
+		//X[2] = X[2] + h2 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//double y = X[1];
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[0] = X[0] + h2 * (X[2]);
+		//h1 = h_local * (-1.702414383919);
+		//h2 = h1;
+		//X[0] = X[0] + h1 * (X[2]);
+		//X[1] = X[1] + h1 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[2] = X[2] + h1 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//X[3] = X[3] + h1 * (-a[6] * X[2] * X[3]);
+		//X[3] = (X[3]) / (1 + h2 * a[6] * X[2]);
+		//X[2] = X[2] + h2 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//y = X[1];
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[0] = X[0] + h2 * (X[2]);
+		//h1 = h_local * 1.35120719196;
+		//h2 = h1;
+		//X[0] = X[0] + h1 * (X[2]);
+		//X[1] = X[1] + h1 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[2] = X[2] + h1 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//X[3] = X[3] + h1 * (-a[6] * X[2] * X[3]);
+		//X[3] = (X[3]) / (1 + h2 * a[6] * X[2]);
+		//X[2] = X[2] + h2 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		//y = X[1];
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		//X[0] = X[0] + h2 * (X[2]);
+
+
 		break;
 	case RK4:
 	/*	double X1[4];
@@ -1226,8 +1625,100 @@ __device__ void calculateDiscreteModel(int mode, double* X, double* a, double h)
 				}
 			}
 		}*/
+		//Switching between Dissipative and Conservative Behaviors 0.5 6 10 2.7 1 1.5 1
+		//double X1[4];
+		//double k[4][4];
+		//int N = 4;
+		//int i, j;
+		//for (i = 0; i < N; i++) {
+		//	X1[i] = X[i];
+		//}
+		//for (j = 0; j < 4; j++) {
+		//	k[0][j] = (X1[2]);
+		//	k[1][j] = (-X1[2] * (a[1] * X1[1] + a[2] * X1[1] * X1[1] + X1[0] * X1[2]));
+		//	k[2][j] = (a[3] * X1[0] * X1[0] + a[4] * X1[1] * X1[1] + a[5] * X1[3] * X1[3] - 1);
+		//	k[3][j] = (-a[6] * X1[2] * X1[3]);
+		//	if (j == 3) {
+		//		for (i = 0; i < N; i++) {
+		//			X[i] = X[i] + h * (k[i][0] + 2 * k[i][1] + 2 * k[i][2] + k[i][3]) / 6;
+		//		}
+		//	}
+		//	else if (j == 2) {
+		//		for (i = 0; i < N; i++) {
+		//			X1[i] = X[i] + h * k[i][j];
+		//		}
+		//	}
+		//	else {
+		//		for (i = 0; i < N; i++) {
+		//			X1[i] = X[i] + 0.5 * h * k[i][j];
+		//		}
+		//	}
+		//}
+
+
 		break;
 
+	case RK2:
+		//Switching between Dissipative and Conservative Behaviors 0.5 6 10 2.7 1 1.5 1
+		double X1[4];
+		h = 0.5 * h;
+		X1[0] = X[0] + h * (X[2]);
+		X1[1] = X[1] + h * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X1[2] = X[2] + h * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		X1[3] = X[3] + h * (-a[6] * X[2] * X[3]);
+		h = h * 2;
+		X[0] = X[0] + h * (X1[2]);
+		X[1] = X[1] + h * (-X1[2] * (a[1] * X1[1] + a[2] * X1[1] * X1[1] + X1[0] * X1[2]));
+		X[2] = X[2] + h * (a[3] * X1[0] * X1[0] + a[4] * X1[1] * X1[1] + a[5] * X1[3] * X1[3] - 1);
+		X[3] = X[3] + h * (-a[6] * X1[2] * X1[3]);
+		break;
+	case CD:
+
+		h1 = h * a[0];
+		h2 = h * (1 - a[0]);
+
+		X[0] = X[0] + h1 * (X[2]);
+		X[1] = X[1] + h1 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X[2] = X[2] + h1 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		X[3] = X[3] + h1 * (-a[6] * X[2] * X[3]);
+
+		X[3] = (X[3]) / (1 + h2 * a[6] * X[2]);
+		X[2] = X[2] + h2 * (a[3] * X[0] * X[0] + a[4] * X[1] * X[1] + a[5] * X[3] * X[3] - 1);
+		double y = X[1];
+		X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X[1] = y + h2 * (-X[2] * (a[1] * X[1] + a[2] * X[1] * X[1] + X[0] * X[2]));
+		X[0] = X[0] + h2 * (X[2]);
+		break;
+
+	case DUFFING_RO:
+
+
+		h1 = h * a[10] * a[6];
+		h2 = h * a[10] * (1 - a[6]);
+
+		X[3] = X[3] + h1 * (-X[4] - X[5]);
+		X[4] = (X[4] + h1 * (X[3])) / (1 - a[7] * h1);
+		X[5] = (X[5] + h1 * (a[8])) / (1 - h1 * (X[3] - a[9]));
+
+		X[5] = X[5] + h2 * (a[8] + X[5] * (X[3] - a[9]));
+		X[4] = X[4] + h2 * (X[3] + a[7] * X[4]);
+		X[3] = X[3] + h2 * (-X[4] - X[5]);
+
+		h1 = h * a[0];
+		h2 = h * (1 - a[0]);
+
+		X[2] = a[4] * X[5] + a[5];
+		//a[4]*sin(a[5]*X[2])
+		X[0] = X[0] + h1 * (X[1]);
+		X[1] = (X[1] + h1 * (-a[1] * X[0] - a[2] * X[0] * X[0] * X[0] + X[2])) / (1 + h1 * a[3]);
+		X[2] = X[2] + h;
+		X[1] = X[1] + h2 * (-a[1] * X[0] - a[2] * X[0] * X[0] * X[0] - a[3] * X[1] + X[2]);
+		X[0] = X[0] + h2 * (X[1]);
+
+
+		break;
 	}
 }
 

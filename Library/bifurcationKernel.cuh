@@ -21,7 +21,10 @@ enum DISCRETE_MODEL
 	DISSIPATA,
 	TIMUR,
 	CompCD,
-	RK4
+	RK4,
+	RK2,
+	CD,
+	DUFFING_RO
 };
 
 
@@ -52,6 +55,30 @@ __global__ void bifuractionKernel(	int in_nPts,
 									float in_kdeSamplesInterval2 = 0.0f,
 									float in_kdeSmoothH = 0.0f);
 
+__global__ void LLEKernel(
+	int in_nPts,
+	double in_TMax,
+	double in_NT,
+	double in_h,
+	double* in_initialConditions,
+	double in_prePeakFinderSliceK,
+	float* in_data,
+	int* in_dataSizes,
+	int thresholdValueOfMaxSignalValue,
+	int	in_amountOfParams,
+	int in_discreteModelMode,
+	int	in_prescaller,
+	double eps,
+	double* in_params,
+	double* in_paramValues1,
+	int	in_mode1,
+	double* in_paramValues2 = nullptr,
+	int in_mode2 = -1,
+	double* in_paramValues3 = nullptr,
+	int in_mode3 = -1
+);
+
+__device__ float calculationForLLE(double* X, double* Y, double eps, int N);
 
 // Обертка, которая для каждой бифуркационки будет своя!
 __host__ void bifurcation1D(double					in_tMax,
@@ -73,7 +100,26 @@ __host__ void bifurcation1D(double					in_tMax,
 							bool				in_debug,
 							std::atomic<int>& progress);
 
-
+__host__ void LLE1D(
+	double					in_tMax,
+	double				in_NT,
+	int					in_nPts,
+	double				in_h,
+	double* in_initialConditions,
+	double				in_paramValues1,
+	double				in_paramValues2,
+	double				in_prePeakFinderSliceK,
+	int					in_thresholdValueOfMaxSignalValue,
+	int					in_amountOfParams,
+	int					in_discreteModelMode,
+	int					in_prescaller,
+	double				in_eps,
+	double* in_params,
+	int					in_mode,
+	double				in_memoryLimit,
+	std::string			in_outPath,
+	bool				in_debug,
+	std::atomic<int>& progress);
 
 // Обертка, которая для каждой бифуркационки будет своя!
 __host__ void bifurcation2D(double					in_tMax,
