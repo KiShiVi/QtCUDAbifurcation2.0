@@ -1,0 +1,2 @@
+[WarpWatch]
+Expressions=zPower, idx, localParam[1], res, in_data_1, y[i], (double)((x[i] - y[i])*in_data_1), index, in_TMax

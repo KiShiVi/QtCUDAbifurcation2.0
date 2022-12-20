@@ -195,7 +195,7 @@ __host__ void LLE1D(
 	std::atomic<int>& progress)
 {
 	size_t amountOfNT_points = in_NT / in_h;
-	size_t amountOfTPoints = in_tMax / amountOfNT_points;
+	size_t amountOfTPoints = in_tMax / in_NT;
 
 	double* globalParamValues = nullptr;
 	globalParamValues = (double*)malloc(sizeof(double) * in_nPts);
@@ -998,27 +998,25 @@ __global__ void LLEKernel(
 {
 	int idx = threadIdx.x + blockIdx.x * blockDim.x;
 	size_t amountOfNT_points = in_NT / in_h;
-	size_t amountOfTPoints = in_TMax / amountOfNT_points;
-	//size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
+	size_t amountOfTPoints = in_TMax / in_NT;
+	size_t amountOfSkipPoints = in_prePeakFinderSliceK / in_h;
 	size_t index = amountOfTPoints * idx;
 	//std::printf("%i\n", idx);
-
+	// 
 	if (idx >= in_nPts)
 		return;
 
 
 
-	//int AmountDim = 3;
+	int AmountDim = 3;
 	////// Change to dynamic / KISH
-	//double* x = new double[3];
-	//double* y = new double[3];
-	//double* z = new double[3];
+	double* x = new double[3] { in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
+	double* y = new double[3];
+	double* z = new double[3];
 
-	//for (size_t i = 0; i < AmountDim; i++)
-	//	x[i] = in_initialConditions[i];
+	for (size_t i = 0; i < AmountDim; i++)
+		x[i] = in_initialConditions[i];
 
-	//for (int i = 0; i < AmountDim; i++)
-	//	x[i+6] = 0.2171828;
 
 	////x[3]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2] };
 	////double x[4]{ in_initialConditions[0], in_initialConditions[1], in_initialConditions[2], in_initialConditions[3] };
@@ -1031,100 +1029,116 @@ __global__ void LLEKernel(
 
 	////double* z = new double[3];
 
-	//double* localParam = new double[in_amountOfParams];
-	//for (size_t i = 0; i < in_amountOfParams; ++i)
-	//	localParam[i] = in_params[i];
+	double* localParam = new double[in_amountOfParams];
+	for (size_t i = 0; i < in_amountOfParams; ++i)
+		localParam[i] = in_params[i];
 
-	//localParam[in_mode1] = in_paramValues1[idx];
+	localParam[in_mode1] = in_paramValues1[idx];
 
-	//if (in_paramValues2 != nullptr)
-	//	localParam[in_mode2] = in_paramValues2[idx];
+	if (in_paramValues2 != nullptr)
+		localParam[in_mode2] = in_paramValues2[idx];
 
-	//if (in_paramValues3 != nullptr)
-	//	localParam[in_mode3] = in_paramValues3[idx];
-
-
-	////z[0] = 0.2171828;
-	////z[1] = 0.2171828;
-	////z[2] = 0.2171828;
-	////std::printf("%f %f %f\n", x[0], x[1], x[2]);
-	////int AmountDim = 3;
-	////for (int i = 0; i < 3; i++) {
-	////	z[i] = 0.2171828;
-	////}
-
-	////Skip PREPEAKFINDER points
-	////for (size_t i = 0; i < amountOfSkipPoints; ++i) {
-
-	////	calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
-
-	////	if (abs(x[0]) > thresholdValueOfMaxSignalValue)
-	////	{
-	////		in_dataSizes[idx] = 0;
-	////		delete[] localParam;
-	////		return;
-	////	}
-	////}
-
-	//////Calculating
-
-	////for (int i = 0; i < AmountDim; i++) {
-	////	y[i] = z[i] * eps + x[i];
-	////}
+	if (in_paramValues3 != nullptr)
+		localParam[in_mode3] = in_paramValues3[idx];
 
 
-	////for (int i = 0; i < amountOfTPoints; ++i)
-	////{
-	////	////in_data[index + i] = (float)(x[in_nValue]);
-	////	//for (size_t j = 0; j < in_prescaller - 1; ++j)
-	////	//	calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+	double zPower = 0;
+	for (int i = 0; i < AmountDim; i++)
+	{
+		z[i] = 0.5 * sinf(idx * i * idx);	// 0.2171828 change to z[i] = rand(0, 1) - 0.5;
+		zPower += z[i] * z[i];
+	}
 
-	////	for (int j = 0; j < 40; ++j) {
-	////		calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
-	////		calculateDiscreteModel(in_discreteModelMode, y, localParam, in_h);
+	zPower = sqrt(zPower);
 
-	////		if (abs(x[0]) > thresholdValueOfMaxSignalValue)
-	////		{
-	////			in_dataSizes[idx] = 0;
-	////			delete[] localParam;
-	////			return;
-	////		}
-
-	////		if (abs(y[0]) > thresholdValueOfMaxSignalValue)
-	////		{
-	////			in_dataSizes[idx] = 0;
-	////			delete[] localParam;
-	////			return;
-	////		}
-
-	////	}
-	////	//calculationForLLE(double* X, double* Y, double eps, int N)
-	////	in_data[index + i] = calculationForLLE(x,y,eps, AmountDim);
-	////	float in_data_1 = 1 / in_data[index + i];
-
-	////	y[0] = (double)(x[0] - (x[0] - y[0]) * in_data_1);
-	////	y[1] = (double)(x[1] - (x[1] - y[1]) * in_data_1);
-	////	y[2] = (double)(x[2] - (x[2] - y[2]) * in_data_1);
-
-	////	//for (int i = 0; i < AmountDim; i++) {
-	////	//	y[i] = (double)((x[i] - y[i])*in_data_1);
-	////	//}
-	////}
-
-	////float res1 = 0;
-
-	////for (int i = 0; i < amountOfTPoints; ++i)
-	////	res1 = res1 + log(in_data[index + i]);
+	for (int i = 0; i < AmountDim; i++)
+	{
+		z[i] /= zPower;
+	}
 
 
-	//delete[] localParam;
+	//Skip PREPEAKFINDER points
+	for (size_t i = 0; i < amountOfSkipPoints; ++i) {
 
-	//delete[] y;
-	//delete[] x;
-	//delete[] z;
+		calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+
+		if (abs(x[0]) > thresholdValueOfMaxSignalValue)
+		{
+			in_dataSizes[idx] = 0;
+			delete[] localParam;
+			delete[] y;
+			delete[] x;
+			delete[] z;
+			return;
+		}
+	}
+
+	//Calculating
+
+	for (int i = 0; i < AmountDim; i++) {
+		y[i] = z[i] * eps + x[i];
+	}
+
+
+	for (int i = 0; i < amountOfTPoints; ++i)
+	{
+		////in_data[index + i] = (float)(x[in_nValue]);
+		//for (size_t j = 0; j < in_prescaller - 1; ++j)
+		//	calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+
+		for (int j = 0; j < amountOfNT_points; ++j) {
+			calculateDiscreteModel(in_discreteModelMode, x, localParam, in_h);
+			calculateDiscreteModel(in_discreteModelMode, y, localParam, in_h);
+
+			if (abs(x[0]) > thresholdValueOfMaxSignalValue)
+			{
+				in_dataSizes[idx] = 0;
+				delete[] localParam;
+				delete[] y;
+				delete[] x;
+				delete[] z;
+				return;
+			}
+
+			if (abs(y[0]) > thresholdValueOfMaxSignalValue)
+			{
+				in_dataSizes[idx] = 0;
+				delete[] localParam;
+				delete[] y;
+				delete[] x;
+				delete[] z;
+				return;
+			}
+		}
+		//calculationForLLE(double* X, double* Y, double eps, int N)
+		in_data[index + i] = calculationForLLE(x,y,eps, AmountDim);
+		float in_data_1 = (float)(1.0f / in_data[index + i]);
+
+		//y[0] = (double)(x[0] - (x[0] - y[0]) * in_data_1);
+		//y[1] = (double)(x[1] - (x[1] - y[1]) * in_data_1);
+		//y[2] = (double)(x[2] - (x[2] - y[2]) * in_data_1);
+
+		for (int j = 0; j < AmountDim; j++) {
+			//y[i] = (double)((x[i] - y[i])*in_data_1);
+			y[j] = (double)(x[j] - ((x[j] - y[j]) * in_data_1));
+
+		}
+	}
+
+	float res1 = 0;
+
+	for (int i = 0; i < amountOfTPoints; ++i)
+		res1 += log(in_data[index + i]);
+
+
+	delete[] localParam;
+
+	delete[] y;
+	delete[] x;
+	delete[] z;
 
 	in_dataSizes[idx] = 1;
-	in_data[index] = (float)(666*idx);
+	in_data[index] = res1 / in_TMax;
 
 
 	// Here is the choice of method: KDE or peakFinder

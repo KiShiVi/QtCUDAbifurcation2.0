@@ -1,4 +1,4 @@
-﻿#include "C:\GitHub\QtCUDAbifurcation2.0\Library\bifurcationKernel.cuh"
+﻿#include "../../Library/bifurcationKernel.cuh"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <string>
@@ -16,27 +16,27 @@ int main()
 	std::atomic<int> a;
 	a.store(0);
 	size_t startTime = clock();
-	double initialConditions[3]{ 0.001, 0, 0 };
+	double initialConditions[3]{ 0.2, 0.2, 0.2 };
 	double params[4]{ 0.5, 0.2, 0.2, 5.7 };
 	int AmountPar = sizeof(params) / sizeof(double);
 
 
-	double	in_tMax = 500;
+	double	in_tMax = 10000;
 	double  in_NT = 0.4;
-	int		in_nPts = 2000;
+	int		in_nPts = 10000;
 	double	in_h = 0.01;
 	double	in_paramValues1 = 0.05;
-	double	in_paramValues2 = 0.38;
+	double	in_paramValues2 = 0.35;
 	double	in_paramValues3 = 0;
 	double	in_paramValues4 = 20;
 	int		in_nValue = 1;
-	double	in_prePeakFinderSliceK = 4000;
+	double	in_prePeakFinderSliceK = 1000;
 	int		in_thresholdValueOfMaxSignalValue = 200000;
 	int		in_prescaller = 1;
 	int		in_mode1 = 1;
 	int		in_mode2 = 2;
 	double	in_memoryLimit = 0.5;
-	double eps = 1e-8;
+	double eps = 1e-3;
 
 
 	//bifurcation1D(
@@ -60,188 +60,188 @@ int main()
 	//	a
 	//);
 
-			LLE1D(
-			in_tMax,
-			in_NT,
-			in_nPts,
-			in_h,
-			initialConditions,
-			in_paramValues1,
-			in_paramValues2,
-			in_prePeakFinderSliceK,
-			in_thresholdValueOfMaxSignalValue,
-			AmountPar,
-			ROSSLER,
-			in_prescaller,
-			eps,
-			params,
-			in_mode1,
-			in_memoryLimit,
-			"C:\\CUDA\\My\\LLE.csv",
-			1,
-			a);
+	LLE1D(
+		in_tMax,
+		in_NT,
+		in_nPts,
+		in_h,
+		initialConditions,
+		in_paramValues1,
+		in_paramValues2,
+		in_prePeakFinderSliceK,
+		in_thresholdValueOfMaxSignalValue,
+		AmountPar,
+		ROSSLER,
+		in_prescaller,
+		eps,
+		params,
+		in_mode1,
+		in_memoryLimit,
+		"C:\\Users\\KiShiVi\\Desktop\\mat.csv",
+		1,
+		a);
 
-		//double initialConditions[6]{ 0.001, 0, 0, 0.02, 0.02, 0.02 };
-		//double params[11]{ 0.5, -1, 1, 0.5, 7, 0, 0.5, 0.143, 0.2, 5.7, 4.09};
-		//int AmountPar = sizeof(params) / sizeof(double);
+	//double initialConditions[6]{ 0.001, 0, 0, 0.02, 0.02, 0.02 };
+	//double params[11]{ 0.5, -1, 1, 0.5, 7, 0, 0.5, 0.143, 0.2, 5.7, 4.09};
+	//int AmountPar = sizeof(params) / sizeof(double);
 
-		//double	in_tMax = 500;
-		//int		in_nPts = 200;
-		//double	in_h = 0.01;
-		//double	in_paramValues1 = 0.1;
-		//double	in_paramValues2 = 0.17;
-		//double	in_paramValues3 = 0;
-		//double	in_paramValues4 = 20;
-		//int		in_nValue = 1;
-		//double	in_prePeakFinderSliceK = 4000;
-		//int		in_thresholdValueOfMaxSignalValue = 200000;
-		//int		in_prescaller = 1;
-		//int		in_mode1 = 7;
-		//int		in_mode2 = 4;
-		//double	in_memoryLimit = 0.95;
-
-
-
-		//bifurcation1D(
-		//	in_tMax,
-		//	20000,
-		//	in_h,
-		//	initialConditions,
-		//	in_paramValues1,
-		//	in_paramValues2,
-		//	in_nValue,
-		//	in_prePeakFinderSliceK,
-		//	in_thresholdValueOfMaxSignalValue,
-		//	AmountPar,
-		//	DUFFING_RO,
-		//	in_prescaller,
-		//	params,
-		//	in_mode1,
-		//	in_memoryLimit,
-		//	"C:\\CUDA\\My\\bif_1d_duffro_1.csv",
-		//	1,
-		//	a
-		//);
-
-
-		//bifurcation2D(
-		//	in_tMax,
-		//	in_nPts,
-		//	in_h,
-		//	initialConditions,
-		//	in_paramValues1,
-		//	in_paramValues2,
-		//	in_paramValues3,
-		//	in_paramValues4,
-		//	in_nValue,
-		//	in_prePeakFinderSliceK,
-		//	in_thresholdValueOfMaxSignalValue,
-		//	AmountPar,
-		//	DUFFING_RO,
-		//	in_prescaller,
-		//	params,
-		//	in_mode1,
-		//	in_mode2,
-		//	1,
-		//	1,
-		//	1,
-		//	1,
-		//	in_memoryLimit,
-		//	"C:\\CUDA\\My\\bif_1d_duffro_2d.csv",
-		//	1,
-		//	a);
-
-		//std::atomic<int> a;
-		//a.store(0);
-		//double initialConditions[4]{ 0.01, 0.01, 0.01, 0.01 };
-
-		//double params[7]{ 0.5, 6, 10, 2.7, 1, 1.5, 1 };
-
-		//int AmountPar = sizeof(params) / sizeof(double);
-		////
-		//size_t startTime = clock();
-		//bifurcation2D(
-		//	500, //int in_tMax,
-		//	150, //int in_nPts,
-		//	0.01, //double in_h,
-		//	initialConditions, //double* in_initialConditions,
-		//	4, //double in_paramValues1,
-		//	25, //double in_paramValues2,
-		//	6, //double in_paramValues3,
-		//	14, //double in_paramValues4,
-		//	0, //int in_nValue,
-		//	1000, //double in_prePeakFinderSliceK,
-		//	200000, //int in_thresholdValueOfMaxSignalValue,
-		//	AmountPar, //int in_amountOfParams,
-		//	CD, //int in_discreteModelMode,
-		//	1, //int in_prescaller,
-		//	params, //double* in_params,
-		//	1, //int in_mode1,
-		//	2, //int in_mode2,
-		//	10, //int in_kdeSampling,
-		//	-5, //double in_kdeSamplesInterval1,
-		//	15, //double in_kdeSamplesInterval2,
-		//	1e-2, //double in_kdeSamplesSmooth,
-		//	0.95, //double in_memoryLimit,
-		//	"C:\\CUDA\\My\\bif_2d.csv", //std::string in_outPath,
-		//	1, //bool in_debug,
-		//	a //std::atomic<int> & progress);
-		//);
+	//double	in_tMax = 500;
+	//int		in_nPts = 200;
+	//double	in_h = 0.01;
+	//double	in_paramValues1 = 0.1;
+	//double	in_paramValues2 = 0.17;
+	//double	in_paramValues3 = 0;
+	//double	in_paramValues4 = 20;
+	//int		in_nValue = 1;
+	//double	in_prePeakFinderSliceK = 4000;
+	//int		in_thresholdValueOfMaxSignalValue = 200000;
+	//int		in_prescaller = 1;
+	//int		in_mode1 = 7;
+	//int		in_mode2 = 4;
+	//double	in_memoryLimit = 0.95;
 
 
 
-		//double values_h[5]{ 0.005,0.0075,0.01,0.0125,0.015 };
-		////int values_prescaller[5]{ 1,1,1,1,1 };
-		////double values_h[34]{3e-5,4e-5,5e-5,6e-5,7e-5,8e-5,9e-5,1e-4,2e-4,3e-4,4e-4,5e-4,6e-4,7e-4,8e-4,9e-4,1e-3,2e-3,3e-3,4e-3,5e-3,6e-3,7e-3,8e-3,9e-3,0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05 };
-		////int values_prescaller[34]{1666,1250,1000,833,714,625,555,500,250,166,125,100,83,71,62,55,50,25,16,12,10,8,7,6,5,5,3,2,2,1,1,1,1,1 };
-		//std::string str = "C:\\CUDA\\My\\RK4_mat_h_";
-		//std::string path;
-
-		//int CASE = 8;
-		//for (int i = 0; i < 2; i++) {
-		//	CASE++;
-		//	if (CASE == 9)
-		//		str = "C:\\CUDA\\My\\RK2_mat_h_";
-		//	if (CASE == 10)
-		//		str = "C:\\CUDA\\My\\CD_mat_h_";
-		//	for (int i = 0; i < 5; i++) {
-
-
-		//		path = str + std::to_string(i) + ".csv";
-		//		size_t startTime = clock();
-		//		bifurcation2D(
-		//			400, //int in_tMax,
-		//			200, //int in_nPts,
-		//			values_h[i], //double in_h,
-		//			initialConditions, //double* in_initialConditions,
-		//			4, //double in_paramValues1,
-		//			25, //double in_paramValues2,
-		//			6, //double in_paramValues3,
-		//			14, //double in_paramValues4,
-		//			0, //int in_nValue,
-		//			1000, //double in_prePeakFinderSliceK,
-		//			200000, //int in_thresholdValueOfMaxSignalValue,
-		//			AmountPar, //int in_amountOfParams,
-		//			CASE, //int in_discreteModelMode,
-		//			1, //int in_prescaller,
-		//			params, //double* in_params,
-		//			1, //int in_mode1,
-		//			2, //int in_mode2,
-		//			10, //int in_kdeSampling,
-		//			-5, //double in_kdeSamplesInterval1,
-		//			15, //double in_kdeSamplesInterval2,
-		//			1e-2, //double in_kdeSamplesSmooth,
-		//			0.95, //double in_memoryLimit,
-		//			path, //std::string in_outPath,
-		//			1, //bool in_debug,
-		//			a //std::atomic<int> & progress);
-		//		);
-		//		std::cout << clock() - startTime << " ms\n";
-		//	}
-		//}
+	//bifurcation1D(
+	//	in_tMax,
+	//	20000,
+	//	in_h,
+	//	initialConditions,
+	//	in_paramValues1,
+	//	in_paramValues2,
+	//	in_nValue,
+	//	in_prePeakFinderSliceK,
+	//	in_thresholdValueOfMaxSignalValue,
+	//	AmountPar,
+	//	DUFFING_RO,
+	//	in_prescaller,
+	//	params,
+	//	in_mode1,
+	//	in_memoryLimit,
+	//	"C:\\CUDA\\My\\bif_1d_duffro_1.csv",
+	//	1,
+	//	a
+	//);
 
 
-		std::cout << clock() - startTime << " ms\n";
+	//bifurcation2D(
+	//	in_tMax,
+	//	in_nPts,
+	//	in_h,
+	//	initialConditions,
+	//	in_paramValues1,
+	//	in_paramValues2,
+	//	in_paramValues3,
+	//	in_paramValues4,
+	//	in_nValue,
+	//	in_prePeakFinderSliceK,
+	//	in_thresholdValueOfMaxSignalValue,
+	//	AmountPar,
+	//	DUFFING_RO,
+	//	in_prescaller,
+	//	params,
+	//	in_mode1,
+	//	in_mode2,
+	//	1,
+	//	1,
+	//	1,
+	//	1,
+	//	in_memoryLimit,
+	//	"C:\\CUDA\\My\\bif_1d_duffro_2d.csv",
+	//	1,
+	//	a);
+
+	//std::atomic<int> a;
+	//a.store(0);
+	//double initialConditions[4]{ 0.01, 0.01, 0.01, 0.01 };
+
+	//double params[7]{ 0.5, 6, 10, 2.7, 1, 1.5, 1 };
+
+	//int AmountPar = sizeof(params) / sizeof(double);
+	////
+	//size_t startTime = clock();
+	//bifurcation2D(
+	//	500, //int in_tMax,
+	//	150, //int in_nPts,
+	//	0.01, //double in_h,
+	//	initialConditions, //double* in_initialConditions,
+	//	4, //double in_paramValues1,
+	//	25, //double in_paramValues2,
+	//	6, //double in_paramValues3,
+	//	14, //double in_paramValues4,
+	//	0, //int in_nValue,
+	//	1000, //double in_prePeakFinderSliceK,
+	//	200000, //int in_thresholdValueOfMaxSignalValue,
+	//	AmountPar, //int in_amountOfParams,
+	//	CD, //int in_discreteModelMode,
+	//	1, //int in_prescaller,
+	//	params, //double* in_params,
+	//	1, //int in_mode1,
+	//	2, //int in_mode2,
+	//	10, //int in_kdeSampling,
+	//	-5, //double in_kdeSamplesInterval1,
+	//	15, //double in_kdeSamplesInterval2,
+	//	1e-2, //double in_kdeSamplesSmooth,
+	//	0.95, //double in_memoryLimit,
+	//	"C:\\CUDA\\My\\bif_2d.csv", //std::string in_outPath,
+	//	1, //bool in_debug,
+	//	a //std::atomic<int> & progress);
+	//);
+
+
+
+	//double values_h[5]{ 0.005,0.0075,0.01,0.0125,0.015 };
+	////int values_prescaller[5]{ 1,1,1,1,1 };
+	////double values_h[34]{3e-5,4e-5,5e-5,6e-5,7e-5,8e-5,9e-5,1e-4,2e-4,3e-4,4e-4,5e-4,6e-4,7e-4,8e-4,9e-4,1e-3,2e-3,3e-3,4e-3,5e-3,6e-3,7e-3,8e-3,9e-3,0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05 };
+	////int values_prescaller[34]{1666,1250,1000,833,714,625,555,500,250,166,125,100,83,71,62,55,50,25,16,12,10,8,7,6,5,5,3,2,2,1,1,1,1,1 };
+	//std::string str = "C:\\CUDA\\My\\RK4_mat_h_";
+	//std::string path;
+
+	//int CASE = 8;
+	//for (int i = 0; i < 2; i++) {
+	//	CASE++;
+	//	if (CASE == 9)
+	//		str = "C:\\CUDA\\My\\RK2_mat_h_";
+	//	if (CASE == 10)
+	//		str = "C:\\CUDA\\My\\CD_mat_h_";
+	//	for (int i = 0; i < 5; i++) {
+
+
+	//		path = str + std::to_string(i) + ".csv";
+	//		size_t startTime = clock();
+	//		bifurcation2D(
+	//			400, //int in_tMax,
+	//			200, //int in_nPts,
+	//			values_h[i], //double in_h,
+	//			initialConditions, //double* in_initialConditions,
+	//			4, //double in_paramValues1,
+	//			25, //double in_paramValues2,
+	//			6, //double in_paramValues3,
+	//			14, //double in_paramValues4,
+	//			0, //int in_nValue,
+	//			1000, //double in_prePeakFinderSliceK,
+	//			200000, //int in_thresholdValueOfMaxSignalValue,
+	//			AmountPar, //int in_amountOfParams,
+	//			CASE, //int in_discreteModelMode,
+	//			1, //int in_prescaller,
+	//			params, //double* in_params,
+	//			1, //int in_mode1,
+	//			2, //int in_mode2,
+	//			10, //int in_kdeSampling,
+	//			-5, //double in_kdeSamplesInterval1,
+	//			15, //double in_kdeSamplesInterval2,
+	//			1e-2, //double in_kdeSamplesSmooth,
+	//			0.95, //double in_memoryLimit,
+	//			path, //std::string in_outPath,
+	//			1, //bool in_debug,
+	//			a //std::atomic<int> & progress);
+	//		);
+	//		std::cout << clock() - startTime << " ms\n";
+	//	}
+	//}
+
+
+	std::cout << clock() - startTime << " ms\n";
 }
 
 
