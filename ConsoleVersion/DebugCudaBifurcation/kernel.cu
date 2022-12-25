@@ -21,26 +21,26 @@ int main()
 	int AmountPar = sizeof(params) / sizeof(double);
 
 
-	double	in_tMax = 500;
-	double  in_NT = 0.4;
-	int		in_nPts = 600;
+	double	in_tMax = 10000;
+	double  in_NT = 0.5;
+	int		in_nPts = 20000;
 	double	in_h = 0.01;
-	double	in_paramValues1 = 0.05;
-	double	in_paramValues2 = 0.35;
+	double	in_paramValues1 = 0.1;
+	double	in_paramValues2 = 0.185;
 	double	in_paramValues3 = 0;
 	double	in_paramValues4 = 20;
-	int		in_nValue = 1;
-	double	in_prePeakFinderSliceK = 1000;
+	int		in_nValue = 0;        
+	double	in_prePeakFinderSliceK = 2000;
 	int		in_thresholdValueOfMaxSignalValue = 200000;
 	int		in_prescaller = 1;
 	int		in_mode1 = 1;
 	int		in_mode2 = 2;
-	double	in_memoryLimit = 0.02;
+	double	in_memoryLimit = 0.95;
 	double eps = 1e-8;
 
 
 	bifurcation1D(
-		in_tMax,
+		in_tMax*0.25,
 		in_nPts,
 		in_h,
 		initialConditions,
@@ -60,7 +60,7 @@ int main()
 		a
 	);
 	std::cout << clock() - startTime << " ms\n";
-
+	startTime = clock();
 	LyapunovSpectrum_1D(
 		in_tMax,
 		in_NT,
@@ -82,6 +82,29 @@ int main()
 		1,
 		a);
 
+	std::cout << clock() - startTime << " ms\n";
+	startTime = clock();
+
+		LLE1D(
+		in_tMax,
+		in_NT,
+		in_nPts,
+		in_h,
+		initialConditions,
+		in_paramValues1,
+		in_paramValues2,
+		in_prePeakFinderSliceK,
+		in_thresholdValueOfMaxSignalValue,
+		AmountPar,
+		ROSSLER,
+		in_prescaller,
+		eps,
+		params,
+		in_mode1,
+		in_memoryLimit,
+		"C:\\CUDA\\My\\LLE.csv",//"C:\\Users\\KiShiVi\\Desktop\\mat.csv",
+		1,
+		a);
 	//double initialConditions[6]{ 0.001, 0, 0, 0.02, 0.02, 0.02 };
 	//double params[11]{ 0.5, -1, 1, 0.5, 7, 0, 0.5, 0.143, 0.2, 5.7, 4.09};
 	//int AmountPar = sizeof(params) / sizeof(double);

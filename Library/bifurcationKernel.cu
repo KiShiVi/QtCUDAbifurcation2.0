@@ -207,7 +207,7 @@ __host__ void LLE1D(
 
 	freeMemory *= in_memoryLimit * 0.95;
 
-	double maxMemoryLimit = sizeof(double) * (amountOfTPoints + 2 + in_amountOfParams) + sizeof(int);
+	double maxMemoryLimit = sizeof(double) * (amountOfTPoints + in_nPts + in_amountOfParams) + sizeof(int);
 
 	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
 	//ne takaya yzh huita ebanaya
@@ -377,7 +377,7 @@ __host__ void LyapunovSpectrum_1D(
 
 	freeMemory *= in_memoryLimit * 0.95;
 
-	double maxMemoryLimit = sizeof(double) * (amountOfTPoints + 2 + in_amountOfParams) + sizeof(int);
+	double maxMemoryLimit = sizeof(double) * (amountOfTPoints + in_nPts*3 + in_amountOfParams) + sizeof(int);
 
 	size_t nPtsLimiter = freeMemory / maxMemoryLimit;
 	//ne takaya yzh huita ebanaya
@@ -1379,8 +1379,8 @@ __global__ void LyapunovSpectrumKernel(
 	if (idx >= in_nPts)
 		return;
 
-	double minusEps = 1 / eps;
-	double minus_in_Tmax = 1 / in_TMax;
+	//double minusEps = 1 / eps;
+	//double minus_in_Tmax = 1 / in_TMax;
 
 	int AmountDim = 3;
 	////// Change to dynamic / KISH
