@@ -1090,7 +1090,6 @@ __global__ void bifuractionKernel(
 		//in_dataSizes[idx] = outSize;
 		//kdeMethod(idx, in_data, in_dataSizes, in_kdeSampling, outSize, in_kdeSamplesInterval1, in_kdeSamplesInterval2, amountOfTPoints, in_kdeSmoothH, amountOfTPoints*0.1);
 
-
 		outSize = peakFinderForDBSCAN(idx, in_h, 0, amountOfTPoints, in_data, in_data, in_dataSizes);
 
 		//float maxx = -9999;//0.002

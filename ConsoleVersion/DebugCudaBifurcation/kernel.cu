@@ -16,21 +16,21 @@ int main()
 	std::atomic<int> a;
 	a.store(0);
 	size_t startTime = clock();
-	double initialConditions[3]{ 0.2, 0.2, 0.2 };
+	double initialConditions[3]{ 0.1, 0.1, 0.1 };
 	double params[4]{ 0.5, 0.2, 0.2, 5.7 };
 	int AmountPar = sizeof(params) / sizeof(double);
 
 
-	double	in_tMax = 10000;
-	double  in_NT = 0.5;
-	int		in_nPts = 20000;
+	double	in_tMax = 1000;
+	double  in_NT = 0.4;
+	int		in_nPts = 50000;
 	double	in_h = 0.01;
-	double	in_paramValues1 = 0.1;
-	double	in_paramValues2 = 0.185;
+	double	in_paramValues1 = 0.05;
+	double	in_paramValues2 = 0.35;
 	double	in_paramValues3 = 0;
 	double	in_paramValues4 = 20;
 	int		in_nValue = 0;        
-	double	in_prePeakFinderSliceK = 2000;
+	double	in_prePeakFinderSliceK = 300;
 	int		in_thresholdValueOfMaxSignalValue = 200000;
 	int		in_prescaller = 1;
 	int		in_mode1 = 1;
@@ -40,7 +40,7 @@ int main()
 
 
 	bifurcation1D(
-		in_tMax*0.25,
+		in_tMax,
 		in_nPts,
 		in_h,
 		initialConditions,
